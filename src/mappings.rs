@@ -62,6 +62,9 @@ lazy_static! {
         "1x1 Round" => BrickDesc::new("B_1x1_Round"),
         "1x1 Round Horiz" => BrickDesc::new("B_1x1_Round").rotate_by_direction(),
         "1x1 Octo Plate" => BrickDesc::new("B_1x1F_Octo"),
+        // The No Lines variant is a standard 1x1 brick without visible seams.
+        // A microbrick preserves its 5x5x6-unit volume while approximating that look.
+        "No Lines 1x1" => BrickDesc::new("PB_DefaultMicroBrick").size((5, 5, 6)),
         "1x1F Round" => BrickDesc::new("B_1x1F_Round"),
         "1x1f Round Horiz" => BrickDesc::new("B_1x1F_Round").rotate_by_direction().rotation_offset(0),
         "2x2 Round" => BrickDesc::new("B_2x2_Round"),
@@ -1504,7 +1507,7 @@ lazy_static! {
     pub static ref BRICK_MAP_REGEX: Vec<(Regex, RegexHandler)> = brick_map_regex![
         // TODO: Consider trying to handle fractional sizes that sometimes occur
         // TODO: Remove (?: Print)? when prints exist
-        r"^(\d+)x(\d+)(?:x(\d+)|([Ff])|([Hh]))?( Print)?( Ceiling)?$" => |captures, from| {
+        r"^(\d+)x(\d+)(?:x(\d+)|([Ff])|([Hh]))?( Print)?( Ceiling)?(?: Brick)?$" => |captures, from| {
             let width: u32 = captures.get(1).unwrap().as_str().parse().ok()?;
             let length: u32 = captures.get(2).unwrap().as_str().parse().ok()?;
             let z: u32 = if captures.get(4).is_some() { // F
