@@ -63,7 +63,8 @@ fn convert_one(input_path: impl AsRef<Path>, output_path: impl AsRef<Path>) -> R
             .sum::<usize>();
 
     // A Blockland save screenshot sits next to the .bls with the same name and a
-    // .jpg extension. When present, use it as the world's preview (Screenshot.jpg).
+    // .jpg extension. When present, use it as the prefab preview
+    // (Meta/Screenshot.jpg) — the game reads it for the prefab thumbnail.
     let screenshot_path = input_path.with_extension("jpg");
     if screenshot_path.is_file() {
         match std::fs::read(&screenshot_path) {
@@ -129,6 +130,12 @@ fn convert_one(input_path: impl AsRef<Path>, output_path: impl AsRef<Path>) -> R
         converted.count_success + converted.count_failure,
         converted_brick_count,
     );
+
+    // Brickadia places these outputs with the prefab tool, which needs
+    // `Meta/Prefab.json` (bundle type "Prefab" plus pivot centroid/bounds
+    // computed from the brick bounding box). Without it the game logs
+    // "Failed to find prefab meta, placement will act oddly."
+    converted.world.make_prefab();
 
     // Dispatch on the output extension: .brdb writes the sqlite directory format,
     // anything else (default .brz) writes the compressed archive.
