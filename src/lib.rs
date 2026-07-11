@@ -6,7 +6,9 @@ pub use brdb;
 mod types;
 #[macro_use]
 mod misc;
+mod lights;
 mod mappings;
+mod prints;
 
 use brdb::assets::materials::{GLOW, METALLIC, PLASTIC, TRANSLUCENT_PLASTIC};
 use brdb::{Brick, BrickSize, BrickType, Collision, Direction, Guid, Owner, Position, Rotation, World};
@@ -18,6 +20,8 @@ const BRICK_OWNER: usize = 0;
 pub struct ConvertReport {
     pub world: World,
     pub unknown_ui_names: HashMap<String, usize>,
+    /// Blockland light datablocks we don't support yet, counted by `uiName`.
+    pub unconverted_lights: HashMap<String, usize>,
     pub count_success: usize,
     pub count_failure: usize,
 }
@@ -34,10 +38,14 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
     let mut converter = Converter {
         world,
         unknown_ui_names: HashMap::new(),
+        unconverted_lights: HashMap::new(),
     };
 
     let mut count_success = 0;
     let mut count_failure = 0;
+
+    // Whether any text decal was emitted, so we register the font asset once.
+    let mut used_font = false;
 
     let mut non_prio = Vec::new();
 
@@ -54,6 +62,32 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
                 continue;
             }
         };
+
+        // Resolve any lights hanging off this Blockland brick into point light
+        // components. Unsupported datablocks are tallied for the report. They
+        // attach to the first brick this mapping produces.
+        let mut light_components: Vec<_> = from
+            .lights()
+            .iter()
+            .filter_map(|light| match lights::map_light(&light.name) {
+                Some(spec) => Some(lights::point_light_component(&spec)),
+                None => {
+                    *converter
+                        .unconverted_lights
+                        .entry(light.name.clone())
+                        .or_default() += 1;
+                    None
+                }
+            })
+            .collect();
+
+        // Stock letter prints (`Letters/A`) become a text decal on the brick.
+        // Like lights, it rides on the first brick this mapping produces.
+        let mut text_component = from
+            .print
+            .as_deref()
+            .and_then(prints::letter_from_print)
+            .map(prints::text_decal_component);
 
         for BrickDesc {
             asset,
@@ -188,10 +222,11 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
                 _ => Rotation::Deg270,
             };
 
-            let brick = Brick {
+            let mut brick = Brick {
                 id: None,
                 asset: asset_type,
                 owner_index: Some(BRICK_OWNER),
+                original_owner_index: None,
                 position,
                 rotation,
                 direction: direction_override.unwrap_or(Direction::ZPositive),
@@ -203,6 +238,16 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
                 components: Vec::new(),
             };
 
+            // Only the first brick a mapping produces carries the lights and
+            // any text decal.
+            for component in light_components.drain(..) {
+                brick.add_component(component);
+            }
+            if let Some(text) = text_component.take() {
+                brick.add_component(text);
+                used_font = true;
+            }
+
             if non_priority || (modter && !brick.visible) {
                 non_prio.push(brick);
             } else {
@@ -213,9 +258,34 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
 
     converter.world.bricks.append(&mut non_prio);
 
+    // Text decals reference the RobotoMono font by index into the world's
+    // external asset table; register it (as index 0) before the writer resolves
+    // the `Font` property. Only added when a decal actually uses it.
+    if used_font {
+        converter
+            .world
+            .global_data
+            .external_asset_types
+            .insert(prints::FONT_ASSET_TYPE.to_string());
+        converter
+            .world
+            .global_data
+            .external_asset_references
+            .insert((
+                prints::FONT_ASSET_TYPE.to_string(),
+                prints::FONT_ASSET_NAME.to_string(),
+            ));
+    }
+
+    // The writer requires every component type used on a brick to be registered
+    // in the world's component schema and global-data tables. Do this after all
+    // bricks (and their components) are in place.
+    converter.world.register_used_components();
+
     ConvertReport {
         world: converter.world,
         unknown_ui_names: converter.unknown_ui_names,
+        unconverted_lights: converter.unconverted_lights,
         count_success,
         count_failure,
     }
@@ -224,6 +294,7 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
 struct Converter {
     world: World,
     unknown_ui_names: HashMap<String, usize>,
+    unconverted_lights: HashMap<String, usize>,
 }
 
 impl Converter {

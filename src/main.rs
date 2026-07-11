@@ -84,6 +84,15 @@ fn convert_one(input_path: impl AsRef<Path>, output_path: impl AsRef<Path>) -> R
         }
     }
 
+    if !converted.unconverted_lights.is_empty() {
+        println!("Unsupported lights:");
+        let mut names: Vec<_> = converted.unconverted_lights.into_iter().collect();
+        names.sort_by(|(_, ac), (_, bc)| ac.cmp(bc).reverse());
+        for (name, count) in names {
+            println!("  {:<28} {:>4} lights", name, count);
+        }
+    }
+
     if converted.count_failure > 0 {
         println!("{} bricks failed to convert", converted.count_failure);
     }
