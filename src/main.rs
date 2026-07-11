@@ -22,6 +22,13 @@ fn run() -> Result<(), String> {
     let args = parse_args()
         .map_err(|_| String::from("Error: No bls files given. Drag them onto this program's executable file. (Not this window! This is just an error message, not the program itself.)"))?;
 
+    if let Some(dir) = &args.output_dir {
+        errmsg(
+            std::fs::create_dir_all(dir),
+            "Failed to create output directory",
+        )?;
+    }
+
     for (i, input_path) in args.input_paths.iter().enumerate() {
         if i > 0 {
             println!();
@@ -36,7 +43,11 @@ fn run() -> Result<(), String> {
             continue;
         }
 
-        let mut output_path = input_path.clone();
+        let mut output_path = match &args.output_dir {
+            // Redirect output into the requested directory, keeping the stem.
+            Some(dir) => dir.join(input_path.file_name().unwrap()),
+            None => input_path.clone(),
+        };
 
         output_path.set_extension("brz");
 
@@ -143,7 +154,10 @@ fn convert_one(input_path: impl AsRef<Path>, output_path: impl AsRef<Path>) -> R
     let result = if is_brdb {
         converted.world.write_brdb(output_path)
     } else {
-        converted.world.write_brz(output_path)
+        // `write_brz` hardcodes zstd level 14, which is ~165x slower than level
+        // 6 for <0.5% size gain (23s vs 0.14s on a 600k-brick save). Level 6 is
+        // the sweet spot: near-identical size, near-instant.
+        bls2brz::brdb::Brz::save_with_level(output_path, &converted.world, Some(6))
     };
 
     errmsg(result, "Failed to write save file")?;
@@ -153,19 +167,33 @@ fn convert_one(input_path: impl AsRef<Path>, output_path: impl AsRef<Path>) -> R
 
 struct Args {
     input_paths: Vec<String>,
+    /// Optional `-o <dir>` / `--output <dir>`: write .brz files here instead of
+    /// next to each input.
+    output_dir: Option<PathBuf>,
 }
 
 fn parse_args() -> Result<Args, ()> {
     let mut args = std::env::args();
     args.next().unwrap();
 
-    let input_paths: Vec<_> = args.collect();
+    let mut input_paths = Vec::new();
+    let mut output_dir = None;
+
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "-o" | "--output" => output_dir = Some(PathBuf::from(args.next().ok_or(())?)),
+            _ => input_paths.push(arg),
+        }
+    }
 
     if input_paths.is_empty() {
         return Err(());
     }
 
-    Ok(Args { input_paths })
+    Ok(Args {
+        input_paths,
+        output_dir,
+    })
 }
 
 fn errmsg<T, E: std::fmt::Display>(r: Result<T, E>, message_prefix: &str) -> Result<T, String> {
