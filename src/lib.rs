@@ -6,6 +6,7 @@ pub use brdb;
 mod types;
 #[macro_use]
 mod misc;
+mod events;
 mod lights;
 mod mappings;
 mod prints;
@@ -97,6 +98,15 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
                     .unwrap_or_default();
                 prints::text_decal_component(glyph, placement)
             });
+
+        // A `CenterPrint` event becomes a `Component_Interact` that shows its
+        // message when the brick is clicked. Like lights/prints, it rides on the
+        // first brick this mapping produces.
+        let mut interact_component = from
+            .events()
+            .iter()
+            .find_map(events::centerprint_message)
+            .map(|msg| events::interact_component(&msg));
 
         for BrickDesc {
             asset,
@@ -255,6 +265,9 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
             if let Some(text) = text_component.take() {
                 brick.add_component(text);
                 used_font = true;
+            }
+            if let Some(interact) = interact_component.take() {
+                brick.add_component(interact);
             }
 
             if non_priority || (modter && !brick.visible) {
