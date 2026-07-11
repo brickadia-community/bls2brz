@@ -54,6 +54,13 @@ fn convert_one(input_path: impl AsRef<Path>, output_path: impl AsRef<Path>) -> R
     let save = errmsg(bls::Save::from_path(input_path), "Failed to read bls file")?;
 
     let mut converted = convert(&save);
+    let converted_brick_count = converted.world.bricks.len()
+        + converted
+            .world
+            .grids
+            .iter()
+            .map(|(_, bricks)| bricks.len())
+            .sum::<usize>();
 
     // A Blockland save screenshot sits next to the .bls with the same name and a
     // .jpg extension. When present, use it as the world's preview (Screenshot.jpg).
@@ -76,8 +83,10 @@ fn convert_one(input_path: impl AsRef<Path>, output_path: impl AsRef<Path>) -> R
         let description = &mut converted.world.meta.bundle.description;
 
         let mut prefix = format!(
-            "Converted from {} with bls2brz.",
-            file_name.to_string_lossy()
+            "Converted from {} with bls2brz.\nBrick count: {} Blockland → {} Brickadia.",
+            file_name.to_string_lossy(),
+            converted.count_success,
+            converted_brick_count,
         );
 
         if !description.is_empty() {
@@ -118,7 +127,7 @@ fn convert_one(input_path: impl AsRef<Path>, output_path: impl AsRef<Path>) -> R
         "{} of {} bricks converted successfully to {} bricks",
         converted.count_success,
         converted.count_success + converted.count_failure,
-        converted.world.bricks.len(),
+        converted_brick_count,
     );
 
     // Dispatch on the output extension: .brdb writes the sqlite directory format,

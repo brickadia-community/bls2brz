@@ -16,6 +16,14 @@ Output format is chosen by extension: `.brz` (compressed archive, default) or `.
 
 Not all Blockland bricks are supported, but the converter tries its best to support many variants.
 
+## Highlights
+
+- Converts supported Blockland lights into Brickadia point lights.
+- Converts stock letter prints into text decals.
+- Converts basic `CenterPrint` events into clickable Brickadia interactions.
+- Places ModTer terrain in a separate frozen brick grid, preventing it from
+  overlapping ordinary converted bricks.
+
 ## Notes
 
 - Blockland color alpha is interpreted as material: opaque colors keep the material implied
