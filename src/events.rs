@@ -9,6 +9,8 @@
 //! syntax, so the message string is rewritten in [`to_brickadia_markup`]:
 //!   - `<color:RRGGBB>` opening tags become `<color="RRGGBB">`
 //!   - `</color>` closing tags become `</>`
+//!   - `<font:Name:Size>` tags become `<size="Size">`; Blockland fonts have no
+//!     Brickadia equivalent, so only the pixel size is preserved
 //!   - the whole message is wrapped in a default-red tag, since Blockland
 //!     center-prints render untagged text red.
 
@@ -25,6 +27,8 @@ const DEFAULT_COLOR: &str = "ff0000";
 lazy_static! {
     /// Blockland's `<color:RRGGBB>` opening tag.
     static ref OPEN_TAG: Regex = Regex::new(r"<color:([0-9a-fA-F]{6})>").unwrap();
+    /// Blockland's `<font:Name:Size>` tag; only the trailing pixel size is kept.
+    static ref FONT_TAG: Regex = Regex::new(r"<font:[^:>]*:(\d+)>").unwrap();
 }
 
 /// If `event` is a supported `onActivate` → `CenterPrint` event, return the
@@ -44,9 +48,9 @@ pub fn centerprint_message(event: &Event) -> Option<String> {
 /// Rewrite Blockland inline color markup into Brickadia's, wrapping the result
 /// in the default red so untagged text keeps Blockland's default color.
 fn to_brickadia_markup(text: &str) -> String {
-    let converted = OPEN_TAG
-        .replace_all(text, "<color=\"$1\">")
-        .replace("</color>", "</>");
+    let converted = OPEN_TAG.replace_all(text, "<color=\"$1\">");
+    let converted = FONT_TAG.replace_all(&converted, "<size=\"$1\">");
+    let converted = converted.replace("</color>", "</>").replace("</font>", "</>");
     format!("<color=\"{DEFAULT_COLOR}\">{converted}</>")
 }
 
@@ -91,6 +95,27 @@ mod tests {
             msg,
             r#"<color="ff0000"><color="00ff00">test</><color="0000ff">colors</></>"#
         );
+    }
+
+    #[test]
+    fn font_tag_becomes_size() {
+        let msg = centerprint_message(&ev(
+            "CenterPrint",
+            &["<font:Impact:16>big</font>", "3"],
+        ))
+        .unwrap();
+        assert_eq!(msg, r#"<color="ff0000"><size="16">big</></>"#);
+    }
+
+    #[test]
+    fn real_save_message() {
+        let msg = centerprint_message(&ev(
+            "CenterPrint",
+            &["<color:FFFF00><font:georgia:25>Johnny/Trigun is working.<br><color:FFFFFF>Please make sure you have <color:00FF00>\"Download Textures\"<color:DDDDDD> enabled in the options settings!"],
+        ))
+        .unwrap();
+        assert!(!msg.contains("<font:"), "font tag left raw: {msg}");
+        assert!(msg.contains("<size=\"25\">"));
     }
 
     #[test]

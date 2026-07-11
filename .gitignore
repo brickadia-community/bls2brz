@@ -6,3 +6,4 @@ Cargo.lock
 *.bls
 *.brz
 TODO.md
+examples/convert_tree.rs
