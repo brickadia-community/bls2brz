@@ -2,8 +2,9 @@
 
 Convert Blockland saves (bls) to [Brickadia] saves in the new `brz`/`brdb` format.
 
-Forked from [bls2brs], which targets the legacy `brs` format. bls2brz keeps the same
-Blockland parsing and brick-name mappings and swaps the output layer to the [brdb] crate.
+Evolved from the earlier brs-targeting version of this project (formerly `bls2brs`) —
+same Blockland parsing and brick-name mappings, with the output layer swapped to the
+[brdb] crate.
 
 ## Usage
 
@@ -31,5 +32,4 @@ of converting between them.
 Pull requests are appreciated. If you encounter missing bricks, update `src/mappings.rs`.
 
 [Brickadia]: https://brickadia.com
-[bls2brs]: https://github.com/brickadia/bls2brs
 [brdb]: https://github.com/brickadia-community/brdb
