@@ -96,7 +96,7 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
                 let placement = print_size
                     .map(|size| prints::print_placement(size, ceiling))
                     .unwrap_or_default();
-                prints::text_decal_component(glyph, placement)
+                prints::text_decal_component(glyph, placement, from.rendering)
             });
 
         // A `CenterPrint` event becomes a `Component_Interact` that shows its

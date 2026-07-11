@@ -171,16 +171,18 @@ pub fn print_placement(size: (u32, u32, u32), ceiling: bool) -> PrintPlacement {
 }
 
 /// Build a `Component_TextDisplay` decal showing `text`, sized and faced per
-/// `placement`: a single `RobotoMono` glyph, unlit.
+/// `placement`: a single `RobotoMono` glyph, unlit. `enabled` mirrors the
+/// brick's visibility, so an invisible print brick also hides its decal.
 ///
 /// The set fields mirror the game's own text-component defaults (centered
 /// anchor, white glyph, enabled outline) plus the print-specific choices
 /// (font, size, face, material); the writer fills any remaining field from the
 /// component's built-in defaults. `Font` is asset index 0, which `lib.rs`
 /// registers as the RobotoMono font descriptor.
-pub fn text_decal_component(text: &str, placement: PrintPlacement) -> LiteralComponent {
+pub fn text_decal_component(text: &str, placement: PrintPlacement, enabled: bool) -> LiteralComponent {
     LiteralComponent::new("Component_TextDisplay").with_data([
         ("Text", Box::new(text.to_string()) as Box<dyn AsBrdbValue>),
+        ("bEnabled", Box::new(enabled)),
         ("Font", Box::new(BrdbValue::Asset(Some(0)))),
         ("LineHeight", Box::new(placement.size)),
         ("Face", Box::new(placement.face)),
