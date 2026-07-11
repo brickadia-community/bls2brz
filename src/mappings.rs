@@ -1672,9 +1672,9 @@ lazy_static! {
             } else if captures.name("three_quarters").is_some() {
                 size * 5 * 3 / 4
             } else if captures.name("half").is_some() {
-                size / 2 * 5
+                size * 5 / 2
             } else if captures.name("quarter").is_some() {
-                size / 4 * 5
+                size * 5 / 4
             } else {
                 size * 5
             };
