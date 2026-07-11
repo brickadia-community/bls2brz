@@ -12,7 +12,10 @@ mod mappings;
 mod prints;
 
 use brdb::assets::materials::{GLOW, METALLIC, PLASTIC, TRANSLUCENT_PLASTIC};
-use brdb::{Brick, BrickSize, BrickType, Collision, Direction, Guid, Owner, Position, Rotation, World};
+use brdb::{
+    Brick, BrickSize, BrickType, Collision, Direction, Entity, Guid, Owner, Position, Rotation,
+    World,
+};
 use mappings::{BRICK_MAP_LITERAL, BRICK_MAP_REGEX};
 use types::{BrickDesc, BrickMapping, Color};
 
@@ -49,6 +52,9 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
     let mut used_font = false;
 
     let mut non_prio = Vec::new();
+    // ModTer terrain must not share the main grid: Brickadia resolves overlaps
+    // within a grid, which can make terrain disappear behind ordinary bricks.
+    let mut modter_bricks = Vec::new();
 
     for from in &save.bricks {
         let option = converter.map_brick(from);
@@ -270,7 +276,9 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
                 brick.add_component(interact);
             }
 
-            if non_priority || (modter && !brick.visible) {
+            if modter {
+                modter_bricks.push(brick);
+            } else if non_priority {
                 non_prio.push(brick);
             } else {
                 converter.world.bricks.push(brick);
@@ -279,6 +287,18 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
     }
 
     converter.world.bricks.append(&mut non_prio);
+
+    // An entity-backed grid has its own overlap domain. Freezing the grid keeps
+    // the converted terrain stationary while retaining its original placement.
+    if !modter_bricks.is_empty() {
+        converter.world.add_brick_grid(
+            Entity {
+                frozen: true,
+                ..Default::default()
+            },
+            modter_bricks,
+        );
+    }
 
     // Text decals reference the RobotoMono font by index into the world's
     // external asset table; register it (as index 0) before the writer resolves
