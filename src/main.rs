@@ -1,8 +1,6 @@
-use bls2brs::{bl_save, brs, convert};
+use bls2brz::{bls, convert};
 use std::{
-    fs::File,
     ffi::OsStr,
-    io::BufReader,
     path::{Path, PathBuf},
 };
 
@@ -40,7 +38,7 @@ fn run() -> Result<(), String> {
 
         let mut output_path = input_path.clone();
 
-        output_path.set_extension("brs");
+        output_path.set_extension("brz");
 
         convert_one(&input_path, &output_path)
             .map_err(|e| format!("Error converting {}: {}", input_path.display(), e))?;
@@ -53,23 +51,23 @@ fn convert_one(input_path: impl AsRef<Path>, output_path: impl AsRef<Path>) -> R
     let input_path = input_path.as_ref();
     let output_path = output_path.as_ref();
 
-    let input_file = errmsg(File::open(input_path), "Failed to open bls file")?;
-    let input_file = BufReader::new(input_file);
-    let input_reader = errmsg(bl_save::Reader::new(input_file), "Failed to read bls file")?;
+    let save = errmsg(bls::Save::from_path(input_path), "Failed to read bls file")?;
 
-    let mut converted = errmsg(convert(input_reader), "Failed to convert bls file")?;
+    let mut converted = convert(&save);
 
     if let Some(file_name) = input_path.file_name() {
+        let description = &mut converted.world.meta.bundle.description;
+
         let mut prefix = format!(
-            "Converted from {} with bls2brs.",
+            "Converted from {} with bls2brz.",
             file_name.to_string_lossy()
         );
 
-        if !converted.write_data.description.is_empty() {
+        if !description.is_empty() {
             prefix.push('\n');
         }
 
-        converted.write_data.description.insert_str(0, &prefix);
+        description.insert_str(0, &prefix);
     }
 
     if !converted.unknown_ui_names.is_empty() {
@@ -94,15 +92,19 @@ fn convert_one(input_path: impl AsRef<Path>, output_path: impl AsRef<Path>) -> R
         "{} of {} bricks converted successfully to {} bricks",
         converted.count_success,
         converted.count_success + converted.count_failure,
-        converted.write_data.bricks.len(),
+        converted.world.bricks.len(),
     );
 
-    let mut output_file = errmsg(File::create(output_path), "Failed to create BRS file")?;
+    // Dispatch on the output extension: .brdb writes the sqlite directory format,
+    // anything else (default .brz) writes the compressed archive.
+    let is_brdb = output_path.extension() == Some(OsStr::new("brdb"));
+    let result = if is_brdb {
+        converted.world.write_brdb(output_path)
+    } else {
+        converted.world.write_brz(output_path)
+    };
 
-    errmsg(
-        brs::write_save(&mut output_file, &converted.write_data),
-        "Failed to write BRS file",
-    )?;
+    errmsg(result, "Failed to write save file")?;
 
     Ok(())
 }

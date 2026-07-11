@@ -1,63 +1,38 @@
-use brs::{chrono::prelude::*, uuid::Uuid};
-use std::{
-    collections::HashMap,
-    convert::TryInto,
-    io::{self, prelude::*},
-    ops::Neg,
-};
+use std::{collections::HashMap, ops::Neg};
 
-pub use bl_save;
-pub use brs;
+pub use bls;
+pub use brdb;
 
 mod types;
 #[macro_use]
 mod misc;
 mod mappings;
 
+use brdb::assets::materials::{GLOW, METALLIC, PLASTIC, TRANSLUCENT_PLASTIC};
+use brdb::{Brick, BrickSize, BrickType, Collision, Direction, Guid, Owner, Position, Rotation, World};
 use mappings::{BRICK_MAP_LITERAL, BRICK_MAP_REGEX};
-use types::{BrickDesc, BrickMapping};
-
-// Keep this in sync. Would be nice to just determine the indices at compile time.
-const FIXED_MATERIAL_TABLE: &[&str] = &["BMC_Plastic", "BMC_Glow", "BMC_Metallic"];
-const BMC_PLASTIC: usize = 0;
-const BMC_GLOW: usize = 1;
-const BMC_METALLIC: usize = 2;
+use types::{BrickDesc, BrickMapping, Color};
 
 const BRICK_OWNER: usize = 0;
 
 pub struct ConvertReport {
-    pub write_data: brs::WriteData,
+    pub world: World,
     pub unknown_ui_names: HashMap<String, usize>,
     pub count_success: usize,
     pub count_failure: usize,
 }
 
-pub fn convert(reader: bl_save::Reader<impl BufRead>) -> io::Result<ConvertReport> {
-    let data = brs::WriteData {
-        map: String::from("Unknown"),
-        author: brs::User {
-            id: Uuid::nil(),
-            name: String::from("Unknown"),
-        },
-        description: reader.description().to_string(),
-        save_time: Utc::now(),
-        mods: vec![],
-        brick_assets: vec![],
-        colors: reader.colors().iter().map(|c| map_color(*c)).collect(),
-        materials: FIXED_MATERIAL_TABLE
-            .iter()
-            .map(|s| String::from(*s))
-            .collect(),
-        brick_owners: vec![brs::User {
-            id: Uuid::from_bytes([u8::max_value(); 16]),
-            name: String::from("PUBLIC"),
-        }],
-        bricks: Vec::with_capacity(reader.brick_count().unwrap_or(100).min(10_000_000)),
-    };
+pub fn convert(save: &bls::Save) -> ConvertReport {
+    let mut world = World::new();
+    world.owners.insert(Guid::default(), Owner::default());
+    world.meta.bundle.description = save.description.clone();
+
+    // Resolve the Blockland palette to concrete RGBA colors once up front. brdb
+    // has no per-save color palette, so each brick stores its color directly.
+    let palette: Vec<Color> = save.colors.iter().map(|c| map_color(*c)).collect();
 
     let mut converter = Converter {
-        write_data: data,
-        asset_map: HashMap::new(),
+        world,
         unknown_ui_names: HashMap::new(),
     };
 
@@ -66,9 +41,8 @@ pub fn convert(reader: bl_save::Reader<impl BufRead>) -> io::Result<ConvertRepor
 
     let mut non_prio = Vec::new();
 
-    for from in reader {
-        let from = from?;
-        let option = converter.map_brick(&from);
+    for from in &save.bricks {
+        let option = converter.map_brick(from);
 
         let mappings = match option {
             Some(mappings) => {
@@ -80,13 +54,6 @@ pub fn convert(reader: bl_save::Reader<impl BufRead>) -> io::Result<ConvertRepor
                 continue;
             }
         };
-
-        // match from.base.print.as_str() {
-        //     "A" => {
-        //
-        //     }
-        //     _ => {}
-        // }
 
         for BrickDesc {
             asset,
@@ -101,30 +68,44 @@ pub fn convert(reader: bl_save::Reader<impl BufRead>) -> io::Result<ConvertRepor
             inverted_wedge_rotate,
             modter,
             rotate_by_direction,
-            nocollide
+            nocollide,
         } in mappings
         {
-            let asset_name_index = converter.asset(asset);
-            let mut rotation = (from.base.angle + rotation_offset) % 4;
+            let mut rotation = (from.angle + rotation_offset) % 4;
 
-            let rotated_xy = rotate_offset((offset.0, offset.1), from.base.angle);
+            let rotated_xy = rotate_offset((offset.0, offset.1), from.angle);
             let offset = (rotated_xy.0, rotated_xy.1, offset.2);
 
-            let position = (
-                (from.base.position.1 * 20.0) as i32 + offset.0,
-                (from.base.position.0 * 20.0) as i32 + offset.1,
-                (from.base.position.2 * 20.0) as i32 + offset.2,
-            );
-
-            let material_index = match from.base.color_fx {
-                3 => BMC_GLOW,
-                1 | 2 => BMC_METALLIC,
-                _ => BMC_PLASTIC,
+            let position = Position {
+                x: (from.position.1 * 20.0) as i32 + offset.0,
+                y: (from.position.0 * 20.0) as i32 + offset.1,
+                z: (from.position.2 * 20.0) as i32 + offset.2,
             };
 
-            let color_index = match color_override {
-                Some(color) => converter.color(color) as u32,
-                None => u32::from(from.base.color_index),
+            // Resolve the final RGBA color: an explicit override wins, otherwise
+            // look it up in the converted Blockland palette.
+            let resolved = match color_override {
+                Some(color) => color,
+                None => palette
+                    .get(from.color_index as usize)
+                    .copied()
+                    .unwrap_or(Color::from_rgba(255, 255, 255, 255)),
+            };
+
+            // Alpha carries meaning: opaque bricks use the material implied by the
+            // Blockland color effect; anything translucent becomes translucent
+            // plastic. `material_intensity` is on a 0..=10 scale in the new format
+            // (NOT the 0..=255 alpha range), so the alpha is rescaled.
+            let (material, material_intensity) = if resolved.a < 255 {
+                (TRANSLUCENT_PLASTIC, alpha_to_intensity(resolved.a))
+            } else {
+                let material = match from.color_fx {
+                    3 => GLOW,
+                    1 | 2 => METALLIC,
+                    _ => PLASTIC,
+                };
+                // Neutral default intensity; glow brightness rides on this value.
+                (material, 5)
             };
 
             // convert a vertical slope to microwedge
@@ -132,7 +113,7 @@ pub fn convert(reader: bl_save::Reader<impl BufRead>) -> io::Result<ConvertRepor
                 let original_dir = direction_override;
                 let (x, y, z) = size;
                 if rotation == 0 || rotation == 2 {
-                    direction_override = Some(brs::Direction::YPositive);
+                    direction_override = Some(Direction::YPositive);
                     if rotation == 0 {
                         size = (z, x, y);
                     } else {
@@ -140,7 +121,7 @@ pub fn convert(reader: bl_save::Reader<impl BufRead>) -> io::Result<ConvertRepor
                         rotation = (rotation + 1) % 4;
                     }
                 } else {
-                    direction_override = Some(brs::Direction::XPositive);
+                    direction_override = Some(Direction::XPositive);
                     if rotation == 1 {
                         size = (x, z, y);
                         rotation = (rotation + 2) % 4;
@@ -149,7 +130,7 @@ pub fn convert(reader: bl_save::Reader<impl BufRead>) -> io::Result<ConvertRepor
                         rotation = (rotation + 1) % 4;
                     }
                 }
-                if original_dir.is_some() && original_dir.unwrap() == brs::Direction::ZNegative {
+                if matches!(original_dir, Some(Direction::ZNegative)) {
                     rotation = (rotation + 2) % 4;
                 }
             }
@@ -157,122 +138,112 @@ pub fn convert(reader: bl_save::Reader<impl BufRead>) -> io::Result<ConvertRepor
             if rotate_by_direction {
                 if rotation == 0 || rotation == 2 {
                     direction_override = if rotation == 0 {
-                        Some(brs::Direction::YPositive)
+                        Some(Direction::YPositive)
                     } else {
-                        Some(brs::Direction::YNegative)
+                        Some(Direction::YNegative)
                     };
                     let (x, y, z) = size;
                     size = (y, x, z);
                 } else {
                     direction_override = if rotation == 1 {
-                        Some(brs::Direction::XNegative)
+                        Some(Direction::XNegative)
                     } else {
-                        Some(brs::Direction::XPositive)
+                        Some(Direction::XPositive)
                     };
                 }
             }
 
             // fix odd rotation offsets on inverted ModTer, wedges
-            if (inverted_modter_rotate && (rotation == 1 || rotation == 3)) ||
-                (inverted_wedge_rotate && (rotation == 0 || rotation == 2)) {
+            if (inverted_modter_rotate && (rotation == 1 || rotation == 3))
+                || (inverted_wedge_rotate && (rotation == 0 || rotation == 2))
+            {
                 rotation = (rotation + 2) % 4;
             }
 
-            let color = if let Some(c) = color_override {
-                brs::ColorMode::Custom(c)
-            } else {
-                brs::ColorMode::Set(color_index)
+            let collision_on = if from.collision { !nocollide } else { false };
+            let collision = Collision {
+                player: collision_on,
+                weapon: collision_on,
+                interact: collision_on,
+                tool: collision_on,
+                physics: collision_on,
+                ..Default::default()
             };
 
-            let collision = if from.base.collision {
-                !nocollide
+            // Procedural (resizable) assets carry their size; static named bricks
+            // (`B_...`) have a fixed size baked into the asset.
+            let asset_type = if asset.starts_with("PB_") {
+                BrickType::Procedural {
+                    asset: asset.into(),
+                    size: BrickSize::new(size.0 as u16, size.1 as u16, size.2 as u16),
+                }
             } else {
-                false
+                BrickType::Basic(asset.into())
             };
 
-            let brick = brs::Brick {
-                asset_name_index: asset_name_index as u32,
-                size,
+            let rotation = match rotation {
+                0 => Rotation::Deg0,
+                1 => Rotation::Deg90,
+                2 => Rotation::Deg180,
+                _ => Rotation::Deg270,
+            };
+
+            let brick = Brick {
+                id: None,
+                asset: asset_type,
+                owner_index: Some(BRICK_OWNER),
                 position,
-                direction: direction_override.unwrap_or(brs::Direction::ZPositive),
-                rotation: rotation.try_into().unwrap(),
+                rotation,
+                direction: direction_override.unwrap_or(Direction::ZPositive),
                 collision,
-                visibility: from.base.rendering,
-                material_index: material_index as u32,
-                color,
-                owner_index: BRICK_OWNER as u32,
+                visible: from.rendering,
+                color: resolved.into(),
+                material,
+                material_intensity,
+                components: Vec::new(),
             };
 
-            if non_priority || (modter && !brick.visibility) {
+            if non_priority || (modter && !brick.visible) {
                 non_prio.push(brick);
             } else {
-                converter.write_data.bricks.push(brick);
+                converter.world.bricks.push(brick);
             }
         }
     }
-    
-    converter.write_data.bricks.append(&mut non_prio);
 
-    Ok(ConvertReport {
-        write_data: converter.write_data,
+    converter.world.bricks.append(&mut non_prio);
+
+    ConvertReport {
+        world: converter.world,
         unknown_ui_names: converter.unknown_ui_names,
         count_success,
         count_failure,
-    })
+    }
 }
 
 struct Converter {
-    write_data: brs::WriteData,
-    asset_map: HashMap<String, usize>,
+    world: World,
     unknown_ui_names: HashMap<String, usize>,
 }
 
 impl Converter {
-    fn map_brick(&mut self, from: &bl_save::Brick) -> Option<BrickMapping> {
+    fn map_brick(&mut self, from: &bls::Brick) -> Option<BrickMapping> {
         let mapping = map_brick(from);
 
         if cfg!(debug_assertions) {
-            println!("mapped '{}' to {:?}", from.base.ui_name, mapping);
+            println!("mapped '{}' to {:?}", from.name, mapping);
         }
 
         if mapping.is_none() {
-            *self
-                .unknown_ui_names
-                .entry(from.base.ui_name.clone())
-                .or_default() += 1;
+            *self.unknown_ui_names.entry(from.name.clone()).or_default() += 1;
         }
 
         mapping
     }
-
-    fn asset(&mut self, asset_name: &str) -> usize {
-        if let Some(index) = self.asset_map.get(asset_name) {
-            return *index;
-        }
-
-        let index = self.write_data.brick_assets.len();
-        self.write_data.brick_assets.push(asset_name.to_string());
-        self.asset_map.insert(asset_name.to_string(), index);
-
-        index
-    }
-
-    fn color(&mut self, color: brs::Color) -> usize {
-        // TODO: Optimize lookup with a map
-        for (index, other) in self.write_data.colors.iter().enumerate() {
-            if *other == color {
-                return index;
-            }
-        }
-
-        let index = self.write_data.colors.len();
-        self.write_data.colors.push(color);
-        index
-    }
 }
 
-fn map_brick(from: &bl_save::Brick) -> Option<BrickMapping> {
-    let ui_name = from.base.ui_name.as_str();
+fn map_brick(from: &bls::Brick) -> Option<BrickMapping> {
+    let ui_name = from.name.as_str();
 
     if let Some(mapping) = BRICK_MAP_LITERAL.get(ui_name) {
         return Some(mapping.clone());
@@ -287,12 +258,12 @@ fn map_brick(from: &bl_save::Brick) -> Option<BrickMapping> {
     None
 }
 
-fn map_color((r, g, b, a): (f32, f32, f32, f32)) -> brs::Color {
+fn map_color(c: bls::Color) -> Color {
     // Convert into Unreal color space
-    let r = gamma_expansion(r);
-    let g = gamma_expansion(g);
-    let b = gamma_expansion(b);
-    let a = gamma_expansion(a);
+    let r = gamma_expansion(c.r);
+    let g = gamma_expansion(c.g);
+    let b = gamma_expansion(c.b);
+    let a = gamma_expansion(c.a);
 
     // Convert to 0-255
     let r = (r * 255.0).max(0.0).min(255.0) as u8;
@@ -300,7 +271,12 @@ fn map_color((r, g, b, a): (f32, f32, f32, f32)) -> brs::Color {
     let b = (b * 255.0).max(0.0).min(255.0) as u8;
     let a = (a * 255.0).max(0.0).min(255.0) as u8;
 
-    brs::Color::from_rgba(r, g, b, a)
+    Color::from_rgba(r, g, b, a)
+}
+
+/// Rescale a 0..=255 alpha byte to the new format's 0..=10 material intensity.
+fn alpha_to_intensity(a: u8) -> u8 {
+    ((a as u16 * 10 + 127) / 255).min(10) as u8
 }
 
 fn gamma_expansion(u: f32) -> f32 {

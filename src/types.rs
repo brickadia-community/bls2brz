@@ -1,4 +1,29 @@
+pub use brdb::Direction;
+
 pub type BrickMapping = Vec<BrickDesc>;
+
+/// RGBA color used throughout the mappings. brdb's own `Color` is RGB-only; the
+/// alpha channel is preserved here so `lib.rs` can translate it into a material
+/// choice (opaque vs. translucent plastic) when building the final brick.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Color {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub a: u8,
+}
+
+impl Color {
+    pub const fn from_rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
+        Self { r, g, b, a }
+    }
+}
+
+impl From<Color> for brdb::Color {
+    fn from(c: Color) -> Self {
+        brdb::Color::new(c.r, c.g, c.b)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct BrickDesc {
@@ -6,8 +31,8 @@ pub struct BrickDesc {
     pub size: (u32, u32, u32),
     pub offset: (i32, i32, i32),
     pub rotation_offset: u8,
-    pub color_override: Option<brs::Color>,
-    pub direction_override: Option<brs::Direction>,
+    pub color_override: Option<Color>,
+    pub direction_override: Option<Direction>,
     pub non_priority: bool,
     pub microwedge_rotate: bool,
     pub inverted_modter_rotate: bool,
@@ -51,12 +76,12 @@ impl BrickDesc {
         self
     }
 
-    pub fn color_override(mut self, color_override: brs::Color) -> Self {
+    pub fn color_override(mut self, color_override: Color) -> Self {
         self.color_override = Some(color_override);
         self
     }
 
-    pub fn direction_override(mut self, direction_override: brs::Direction) -> Self {
+    pub fn direction_override(mut self, direction_override: Direction) -> Self {
         self.direction_override = Some(direction_override);
         self
     }

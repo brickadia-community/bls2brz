@@ -4,10 +4,10 @@ use crate::types::{BrickDesc, BrickMapping};
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use std::collections::{HashMap, HashSet};
-use brs::Color;
-use brs::Direction::*;
+use crate::types::Color;
+use crate::types::Direction::*;
 
-type RegexHandler = Box<dyn Fn(Captures, &bl_save::Brick) -> Option<BrickMapping> + Sync>;
+type RegexHandler = Box<dyn Fn(Captures, &bls::Brick) -> Option<BrickMapping> + Sync>;
 
 lazy_static! {
     static ref TILE_PRINTS: HashSet<&'static str> = vec![
@@ -15,14 +15,14 @@ lazy_static! {
         "2x2f/blank",
     ].into_iter().collect();
 
-    static ref WINDOW_COLOR: brs::Color = brs::Color::from_rgba(150, 150, 150, 180);
+    static ref WINDOW_COLOR: Color = Color::from_rgba(150, 150, 150, 180);
 
     static ref BRICK_ROAD_LANE: BrickDesc = BrickDesc::new("PB_DefaultMicroBrick")
-        .color_override(brs::Color::from_rgba(11, 11, 11, 255));
+        .color_override(Color::from_rgba(11, 11, 11, 255));
     static ref BRICK_ROAD_STRIPE: BrickDesc = BrickDesc::new("PB_DefaultMicroBrick")
-        .color_override(brs::Color::from_rgba(254, 254, 232, 255));
+        .color_override(Color::from_rgba(254, 254, 232, 255));
     static ref BRICK_ROAD_CENTER: BrickDesc = BrickDesc::new("PB_DefaultMicroBrick")
-        .color_override(brs::Color::from_rgba(250, 200, 10, 255));
+        .color_override(Color::from_rgba(250, 200, 10, 255));
     static ref GENERIC_DOOR: BrickMapping = vec![
         //frame
         BrickDesc::new("PB_DefaultMicroBrick").size((20, 5, 1)).offset((0, 0, -35)),
@@ -163,9 +163,9 @@ lazy_static! {
             BrickDesc::new("PB_DefaultMicroWedge").size((10, 20, 2)).offset((0, -10, 0)).rotation_offset(1),
             BrickDesc::new("PB_DefaultMicroWedge").size((20, 10, 2)).offset((0, 10, 0)).rotation_offset(2),
             BrickDesc::new("PB_DefaultMicroWedge").size((10, 20, 2)).offset((0, -10, 0)).rotation_offset(3)
-                .color_override(brs::Color::from_rgba(0, 0, 0, 255)),
+                .color_override(Color::from_rgba(0, 0, 0, 255)),
             BrickDesc::new("PB_DefaultMicroWedge").size((20, 10, 2)).offset((0, 10, 0)).rotation_offset(0)
-                .color_override(brs::Color::from_rgba(0, 0, 0, 255)),
+                .color_override(Color::from_rgba(0, 0, 0, 255)),
         ],
 
         "Spawn Point" => vec![
@@ -176,13 +176,13 @@ lazy_static! {
             BrickDesc::new("PB_DefaultMicroWedge").size((2, 5, 2)).offset((0, -3, -28)).rotation_offset(1),
             BrickDesc::new("PB_DefaultMicroWedge").size((5, 2, 2)).offset((0, 3, -28)).rotation_offset(2),
             BrickDesc::new("PB_DefaultMicroWedge").size((2, 5, 2)).offset((0, -3, -28)).rotation_offset(3)
-                .color_override(brs::Color::from_rgba(0, 0, 0, 255)),
+                .color_override(Color::from_rgba(0, 0, 0, 255)),
             BrickDesc::new("PB_DefaultMicroWedge").size((5, 2, 2)).offset((0, 3, -28)).rotation_offset(0)
-                .color_override(brs::Color::from_rgba(0, 0, 0, 255)),
+                .color_override(Color::from_rgba(0, 0, 0, 255)),
             BrickDesc::new("PB_DefaultMicroBrick").size((1, 5, 2)).offset((0, 0, -28))
-                .color_override(brs::Color::from_rgba(0, 0, 0, 255)),
+                .color_override(Color::from_rgba(0, 0, 0, 255)),
             BrickDesc::new("PB_DefaultMicroBrick").size((15, 15, 28)).offset((0, 0, 2))
-                .color_override(brs::Color::from_rgba(150, 150, 150, 180)).nocollide(),
+                .color_override(Color::from_rgba(150, 150, 150, 180)).nocollide(),
         ],
 
         "Checkpoint" => vec![
@@ -193,13 +193,13 @@ lazy_static! {
             BrickDesc::new("PB_DefaultMicroWedge").size((2, 5, 2)).offset((0, -3, -28)).rotation_offset(1),
             BrickDesc::new("PB_DefaultMicroWedge").size((5, 2, 2)).offset((0, 3, -28)).rotation_offset(2),
             BrickDesc::new("PB_DefaultMicroWedge").size((2, 5, 2)).offset((0, -3, -28)).rotation_offset(3)
-                .color_override(brs::Color::from_rgba(254, 254, 232, 255)),
+                .color_override(Color::from_rgba(254, 254, 232, 255)),
             BrickDesc::new("PB_DefaultMicroWedge").size((5, 2, 2)).offset((0, 3, -28)).rotation_offset(0)
-                .color_override(brs::Color::from_rgba(254, 254, 232, 255)),
+                .color_override(Color::from_rgba(254, 254, 232, 255)),
             BrickDesc::new("PB_DefaultMicroBrick").size((1, 5, 2)).offset((0, 0, -28))
-                .color_override(brs::Color::from_rgba(254, 254, 232, 255)),
+                .color_override(Color::from_rgba(254, 254, 232, 255)),
             BrickDesc::new("PB_DefaultMicroBrick").size((15, 15, 28)).offset((0, 0, 2))
-                .color_override(brs::Color::from_rgba(100, 100, 100, 180)).nocollide(),
+                .color_override(Color::from_rgba(100, 100, 100, 180)).nocollide(),
         ],
 
         "2x2x5 Lattice" => vec![
@@ -294,14 +294,14 @@ lazy_static! {
             BrickDesc::new("PB_DefaultMicroWedge").size((2, 20, 2)).offset((8, 0, 8)).microwedge_rotate(true).rotation_offset(0),
             // Lock
             BrickDesc::new("PB_DefaultMicroBrick").size((4, 1, 2)).offset((-11, 0, 2)).non_priority(true)
-                .color_override(brs::Color::from_rgba(255, 255, 0, 255)),
+                .color_override(Color::from_rgba(255, 255, 0, 255)),
             BrickDesc::new("PB_DefaultMicroBrick").size((2, 1, 1)).offset((-11, 0, -1)).non_priority(true)
-                .color_override(brs::Color::from_rgba(255, 255, 0, 255)),
+                .color_override(Color::from_rgba(255, 255, 0, 255)),
             BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 1)).offset((-11, 3, -1)).non_priority(true).microwedge_rotate(true)
-                .color_override(brs::Color::from_rgba(255, 255, 0, 255)).rotation_offset(3)
+                .color_override(Color::from_rgba(255, 255, 0, 255)).rotation_offset(3)
                 .direction_override(ZNegative),
             BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 1)).offset((-11, -3, -1)).non_priority(true).microwedge_rotate(true)
-                .color_override(brs::Color::from_rgba(255, 255, 0, 255)).rotation_offset(1)
+                .color_override(Color::from_rgba(255, 255, 0, 255)).rotation_offset(1)
                 .direction_override(ZNegative),
         ],
 
@@ -1520,7 +1520,7 @@ lazy_static! {
             };
 
             let print = captures.get(6).is_some();
-            let asset = if z == 2 && print && TILE_PRINTS.contains(from.base.print.as_str()) {
+            let asset = if z == 2 && print && from.print.as_deref().is_some_and(|p| TILE_PRINTS.contains(p)) {
                 "PB_DefaultTile"
             } else if z == 2 && print {
                 "PB_DefaultSmoothTile"
@@ -1884,9 +1884,9 @@ lazy_static! {
                 BrickDesc::new("PB_DefaultMicroBrick").size((1, 1, 1)).offset((-4, 0, 1)),
                 BrickDesc::new("PB_DefaultMicroBrick").size((1, 1, 1)).offset((-4, -4, 1)),
                 BrickDesc::new("PB_DefaultMicroBrick").size((1, 1, 1)).offset((-4, -2, 1))
-                    .color_override(brs::Color::from_rgba(0, 0, 0, 255)),
+                    .color_override(Color::from_rgba(0, 0, 0, 255)),
                 BrickDesc::new("PB_DefaultMicroBrick").size((1, 1, 1)).offset((-4, 2, 1))
-                    .color_override(brs::Color::from_rgba(0, 0, 0, 255)),
+                    .color_override(Color::from_rgba(0, 0, 0, 255)),
                 BrickDesc::new("PB_DefaultMicroBrick").size((3, 4, 1)).offset((-1, 0, -3)),
                 BrickDesc::new("PB_DefaultMicroBrick").size((2, 4, 1)).offset((-1, 0, -1)),
                 BrickDesc::new("PB_DefaultMicroBrick").size((3, 1, 2)).offset((4, 0, -2)),

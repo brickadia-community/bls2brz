@@ -1,5 +1,5 @@
 [package]
-name = "bls2brs"
+name = "bls2brz"
 version = "1.0.0"
 authors = ["ns <ns@brickadia.com>", "kmschr <kmschr@gmail.com>"]
 edition = "2021"
@@ -7,6 +7,6 @@ edition = "2021"
 [dependencies]
 lazy_static = "1"
 regex = "1"
-bl_save = "0.2"
-brs = "0.1"
+bls = { git = "https://github.com/Kmschr/bls" }
+brdb = { git = "https://github.com/brickadia-community/brdb" }
 wexit = "0.1"
