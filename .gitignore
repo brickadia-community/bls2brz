@@ -2,8 +2,8 @@
 **/*.rs.bk
 Cargo.lock
 .vscode
-*.brs
-*.bls
-*.brz
+/*.brs
+/*.bls
+/*.brz
 TODO.md
 examples/convert_tree.rs
