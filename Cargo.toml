@@ -8,5 +8,5 @@ edition = "2021"
 lazy_static = "1"
 regex = "1"
 bls = { git = "https://github.com/Kmschr/bls" }
-brdb = { git = "https://github.com/brickadia-community/brdb" }
+brdb = { path = "../brdb/crates/brdb" }
 wexit = "0.1"

@@ -23,18 +23,6 @@ lazy_static! {
         .color_override(Color::from_rgba(254, 254, 232, 255));
     static ref BRICK_ROAD_CENTER: BrickDesc = BrickDesc::new("PB_DefaultMicroBrick")
         .color_override(Color::from_rgba(250, 200, 10, 255));
-    static ref GENERIC_DOOR: BrickMapping = vec![
-        //frame
-        BrickDesc::new("PB_DefaultMicroBrick").size((20, 5, 1)).offset((0, 0, -35)),
-        BrickDesc::new("PB_DefaultMicroBrick").size((20, 5, 1)).offset((0, 0, 35)),
-        BrickDesc::new("PB_DefaultMicroBrick").size((1, 5, 34)).offset((0, 19, 0)),
-        BrickDesc::new("PB_DefaultMicroBrick").size((1, 5, 34)).offset((0, -19, 0)),
-        //door
-        BrickDesc::new("PB_DefaultMicroBrick").size((18, 1, 34)).nocollide(),
-        //handle
-        BrickDesc::new("PB_DefaultMicroBrick").size((3, 1, 3)).offset((2, 12, 0)).nocollide(),
-        BrickDesc::new("PB_DefaultMicroBrick").size((3, 1, 3)).offset((-2, 12, 0)).nocollide(),
-    ];
     static ref PRINT_4X4F_ROUND: BrickMapping = vec![
         BrickDesc::new("PB_DefaultMicroBrick").size((18, 10, 2)),
         BrickDesc::new("PB_DefaultMicroWedge").size((4, 4, 2)).offset((14, 14, 0)).rotation_offset(0),
@@ -100,8 +88,7 @@ lazy_static! {
         "2x2x1 Octo Cone" => BrickDesc::new("B_2x2_Round"),
         "Gravestone" => BrickDesc::new("B_Gravestone"),
         "Pumpkin" => BrickDesc::new("B_Pumpkin").offset((0, 0, -3)),
-        "House Door" => GENERIC_DOOR.clone(),
-        "Plain Door" => GENERIC_DOOR.clone(),
+        // "House Door" / "Plain Door" are prefab-backed; see src/prefabs.rs.
         "1x1 Bamboo" => BrickDesc::new("B_1x1_Round").offset((-10, -10, 0)),
         "4x3 Leaves" => vec![
             BrickDesc::new("PB_DefaultMicroBrick").size((10, 3, 2)),

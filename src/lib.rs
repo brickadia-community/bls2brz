@@ -9,6 +9,7 @@ mod misc;
 mod events;
 mod lights;
 mod mappings;
+mod prefabs;
 mod prints;
 
 use brdb::assets::materials::{GLOW, METALLIC, PLASTIC, TRANSLUCENT_PLASTIC};
@@ -57,6 +58,36 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
     let mut modter_bricks = Vec::new();
 
     for from in &save.bricks {
+        // Bricks with a prefab-backed mapping bypass the BrickDesc pipeline:
+        // the prefab template stamps its bricks (and any dynamic sub-grids,
+        // wires, and joints) straight into the world.
+        if let Some(template) = prefabs::template_for(&from.name) {
+            let center = Position {
+                x: (from.position.1 * 20.0) as i32,
+                y: (from.position.0 * 20.0) as i32,
+                z: (from.position.2 * 20.0) as i32,
+            };
+            let resolved = palette
+                .get(from.color_index as usize)
+                .copied()
+                .unwrap_or(Color::from_rgba(255, 255, 255, 255));
+            let (material, material_intensity) = resolve_material(resolved, from.color_fx);
+            template.instantiate(
+                &mut converter.world,
+                center,
+                from.angle,
+                &prefabs::InstanceStyle {
+                    color: resolved.into(),
+                    material,
+                    material_intensity,
+                    collision: from.collision,
+                    visible: from.rendering,
+                },
+            );
+            count_success += 1;
+            continue;
+        }
+
         let option = converter.map_brick(from);
 
         let mappings = match option {
@@ -151,21 +182,7 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
                     .unwrap_or(Color::from_rgba(255, 255, 255, 255)),
             };
 
-            // Alpha carries meaning: opaque bricks use the material implied by the
-            // Blockland color effect; anything translucent becomes translucent
-            // plastic. `material_intensity` is on a 0..=10 scale in the new format
-            // (NOT the 0..=255 alpha range), so the alpha is rescaled.
-            let (material, material_intensity) = if resolved.a < 255 {
-                (TRANSLUCENT_PLASTIC, alpha_to_intensity(resolved.a))
-            } else {
-                let material = match from.color_fx {
-                    3 => GLOW,
-                    1 | 2 => METALLIC,
-                    _ => PLASTIC,
-                };
-                // Neutral default intensity; glow brightness rides on this value.
-                (material, 5)
-            };
+            let (material, material_intensity) = resolve_material(resolved, from.color_fx);
 
             // convert a vertical slope to microwedge
             if microwedge_rotate {
@@ -378,6 +395,25 @@ fn map_color(c: bls::Color) -> Color {
     let a = (c.a * 255.0).max(0.0).min(255.0) as u8;
 
     Color::from_rgba(r, g, b, a)
+}
+
+/// Resolve a converted RGBA color and Blockland color effect into a Brickadia
+/// material. Alpha carries meaning: opaque bricks use the material implied by
+/// the color effect (plastic/glow/metallic); anything translucent becomes
+/// translucent plastic. `material_intensity` is on a 0..=10 scale in the new
+/// format (NOT the 0..=255 alpha range), so the alpha is rescaled; opaque
+/// bricks get a neutral default intensity that glow brightness rides on.
+fn resolve_material(resolved: Color, color_fx: u8) -> (brdb::BString, u8) {
+    if resolved.a < 255 {
+        (TRANSLUCENT_PLASTIC, alpha_to_intensity(resolved.a))
+    } else {
+        let material = match color_fx {
+            3 => GLOW,
+            1 | 2 => METALLIC,
+            _ => PLASTIC,
+        };
+        (material, 5)
+    }
 }
 
 /// Rescale a 0..=255 alpha byte to the new format's 0..=10 material intensity.
