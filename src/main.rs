@@ -55,6 +55,23 @@ fn convert_one(input_path: impl AsRef<Path>, output_path: impl AsRef<Path>) -> R
 
     let mut converted = convert(&save);
 
+    // A Blockland save screenshot sits next to the .bls with the same name and a
+    // .jpg extension. When present, use it as the world's preview (Screenshot.jpg).
+    let screenshot_path = input_path.with_extension("jpg");
+    if screenshot_path.is_file() {
+        match std::fs::read(&screenshot_path) {
+            Ok(bytes) => {
+                println!("Using preview {}", screenshot_path.display());
+                converted.world.meta.screenshot = Some(bytes);
+            }
+            Err(e) => println!(
+                "Failed to read preview {}: {}",
+                screenshot_path.display(),
+                e
+            ),
+        }
+    }
+
     if let Some(file_name) = input_path.file_name() {
         let description = &mut converted.world.meta.bundle.description;
 

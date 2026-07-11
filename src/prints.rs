@@ -35,10 +35,63 @@ const OUTLINE_WIDTH: f32 = 2.0;
 /// Center the glyph on the brick face.
 const ANCHOR_CENTER: f32 = 0.5;
 
-/// If `print` is a stock letter print (`Letters/A`), return the glyph to show.
+/// If `print` is a stock letter print, return the glyph to show.
+///
+/// Plain glyph prints (`Letters/A`, `Letters/7`) yield that character directly.
+/// Named symbol prints (`Letters/-less_than`) map to their punctuation glyph.
+/// Prints with no printable glyph — `Letters/-space`, image icons
+/// (`Letters/icon_*`), and any unrecognized symbol name — produce no decal.
 pub fn letter_from_print(print: &str) -> Option<&str> {
-    let letter = print.strip_prefix("Letters/")?;
-    (!letter.is_empty()).then_some(letter)
+    let name = print.strip_prefix("Letters/")?;
+
+    if let Some(symbol) = name.strip_prefix('-') {
+        return symbol_glyph(symbol);
+    }
+
+    // `icon_*` prints are pictographs (weapons, etc.), not letters.
+    if name.is_empty() || name.starts_with("icon_") || name.starts_with("Icon_") {
+        return None;
+    }
+
+    Some(name)
+}
+
+/// Map a Blockland named-symbol print (the part after `Letters/-`) to its glyph.
+/// `space` and anything unrecognized return `None` so no decal is emitted.
+fn symbol_glyph(symbol: &str) -> Option<&'static str> {
+    Some(match symbol {
+        "space" => return None,
+        "apostrophe" => "'",
+        "and" => "&",
+        "asterisk" => "*",
+        "at" => "@",
+        "backslash" => "\\",
+        "bang" => "!",
+        "caret" => "^",
+        "colon" => ":",
+        "comma" => ",",
+        "currencysign" => "¤",
+        "dollar" => "$",
+        "equals" => "=",
+        "greater_than" => ">",
+        "less_than" => "<",
+        "minus" => "-",
+        "percent" => "%",
+        "period" => ".",
+        "plus" => "+",
+        "pound" => "#",
+        "qmark" => "?",
+        "roundbracketleft" => "(",
+        "roundbracketright" => ")",
+        "semicolon" => ";",
+        "slash" => "/",
+        "squarebracketleft" => "[",
+        "squarebracketright" => "]",
+        "tilde" => "~",
+        "underscore" => "_",
+        "verticalbar" => "|",
+        _ => return None,
+    })
 }
 
 /// Build a `Component_TextDisplay` decal showing `text`, tuned for the 1x1

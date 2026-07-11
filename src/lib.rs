@@ -330,17 +330,10 @@ fn map_brick(from: &bls::Brick) -> Option<BrickMapping> {
 }
 
 fn map_color(c: bls::Color) -> Color {
-    // Convert into Unreal color space
-    let r = gamma_expansion(c.r);
-    let g = gamma_expansion(c.g);
-    let b = gamma_expansion(c.b);
-    let a = gamma_expansion(c.a);
-
-    // Convert to 0-255
-    let r = (r * 255.0).max(0.0).min(255.0) as u8;
-    let g = (g * 255.0).max(0.0).min(255.0) as u8;
-    let b = (b * 255.0).max(0.0).min(255.0) as u8;
-    let a = (a * 255.0).max(0.0).min(255.0) as u8;
+    let r = (c.r * 255.0).max(0.0).min(255.0) as u8;
+    let g = (c.g * 255.0).max(0.0).min(255.0) as u8;
+    let b = (c.b * 255.0).max(0.0).min(255.0) as u8;
+    let a = (c.a * 255.0).max(0.0).min(255.0) as u8;
 
     Color::from_rgba(r, g, b, a)
 }
@@ -348,14 +341,6 @@ fn map_color(c: bls::Color) -> Color {
 /// Rescale a 0..=255 alpha byte to the new format's 0..=10 material intensity.
 fn alpha_to_intensity(a: u8) -> u8 {
     ((a as u16 * 10 + 127) / 255).min(10) as u8
-}
-
-fn gamma_expansion(u: f32) -> f32 {
-    if u <= 0.04045 {
-        return u / 12.92;
-    }
-    let base = (u + 0.055) / 1.055;
-    base.powf(2.4)
 }
 
 fn rotate_offset(mut offset: (i32, i32), angle: u8) -> (i32, i32) {
