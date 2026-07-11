@@ -82,12 +82,21 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
             .collect();
 
         // Stock letter prints (`Letters/A`) become a text decal on the brick.
-        // Like lights, it rides on the first brick this mapping produces.
+        // Like lights, it rides on the first brick this mapping produces, and is
+        // sized/faced from that brick's geometry.
+        let ceiling = from.name.contains("Ceiling") || from.name.starts_with("Bottom Print");
+        let print_size = mappings.first().map(|d| d.size);
         let mut text_component = from
             .print
             .as_deref()
+            .filter(|_| prints::is_regular_print_brick(&from.name))
             .and_then(prints::letter_from_print)
-            .map(prints::text_decal_component);
+            .map(|glyph| {
+                let placement = print_size
+                    .map(|size| prints::print_placement(size, ceiling))
+                    .unwrap_or_default();
+                prints::text_decal_component(glyph, placement)
+            });
 
         for BrickDesc {
             asset,
