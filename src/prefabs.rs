@@ -26,6 +26,7 @@ use lazy_static::lazy_static;
 /// servo-driven dynamic grid, opened by clicking switch components on the
 /// panel and handles.
 pub static PLAIN_DOOR_BRZ: &[u8] = include_bytes!("../prefabs/plain_door.brz");
+pub static JAIL_DOOR_BRZ: &[u8] = include_bytes!("../prefabs/jail_door.brz");
 
 lazy_static! {
     static ref PLAIN_DOOR: PrefabTemplate = {
@@ -35,10 +36,19 @@ lazy_static! {
     };
 }
 
+lazy_static! {
+    static ref JAIL_DOOR: PrefabTemplate = {
+        let mut t = PrefabTemplate::parse(JAIL_DOOR_BRZ).expect("parse embedded jail_door.brz");
+        t.angle_offset = 0;
+        t
+    };
+}
+
 /// Return the prefab template mapped to a Blockland `uiName`, if any.
 pub fn template_for(ui_name: &str) -> Option<&'static PrefabTemplate> {
     match ui_name {
         "Plain Door" | "House Door" => Some(&PLAIN_DOOR),
+        "Jail Door" => Some(&JAIL_DOOR),
         _ => None,
     }
 }
