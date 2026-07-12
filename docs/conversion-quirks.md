@@ -40,14 +40,18 @@ in `src/lib.rs` and `src/mappings.rs`.
 
 ## Ownership / metadata
 
-- A single PUBLIC owner is registered (`Guid::default()` / `Owner::default()`), every brick gets
-  `owner_index = Some(0)`.
+- Each distinct Blockland `+-OWNER` BL_ID is registered as `BL_ID <number>` after the implicit
+  PUBLIC owner and used as the brick's current owner. If the save contains exactly one distinct
+  BL_ID, it is applied to every brick because Blockland may only stamp ownership at the base of a
+  build. In saves with multiple BL_IDs, bricks without `+-OWNER` remain PUBLIC until ownership can
+  be resolved from physical support connections.
 - Description is copied to `World.meta.bundle.description`, prefixed with a "Converted from … with
   bls2brz" line in `main.rs`.
 
 ## Things intentionally dropped
 
-- bls "extra" lines (real owner IDs, events, named-brick config) — `bls` parses them, but the converter ignores them.
+- Most bls "extra" lines (events other than supported conversions, named-brick config, etc.) —
+  `bls` parses them, but the converter ignores them. Owner BL_IDs are preserved as brick owners.
 - `shape_fx` (undulo/water/etc.) — no mapping.
 - Prints/decals — `print` field currently ignored.
 

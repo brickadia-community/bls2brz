@@ -33,7 +33,29 @@ pub struct ConvertReport {
 
 pub fn convert(save: &bls::Save) -> ConvertReport {
     let mut world = World::new();
-    world.owners.insert(Guid::default(), Owner::default());
+    let mut owner_indices = HashMap::new();
+    for bl_id in save.bricks.iter().filter_map(|brick| brick.owner) {
+        owner_indices.entry(bl_id).or_insert_with(|| {
+            let guid = blockland_owner_guid(bl_id);
+            let name = format!("BL_ID {bl_id}");
+            let (index, _) = world.owners.insert_full(
+                guid,
+                Owner {
+                    user_id: guid,
+                    user_name: name.clone(),
+                    display_name: name,
+                },
+            );
+            // brdb writes PUBLIC implicitly at on-disk index 0; World.owners
+            // contains only the named owners that follow it.
+            index + 1
+        });
+    }
+    let sole_owner = if owner_indices.len() == 1 {
+        owner_indices.values().next().copied()
+    } else {
+        None
+    };
     world.meta.bundle.description = save.description.clone();
 
     // Resolve the Blockland palette to concrete RGBA colors once up front. brdb
@@ -58,6 +80,12 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
     let mut modter_bricks = Vec::new();
 
     for from in &save.bricks {
+        let owner_index = from
+            .owner
+            .and_then(|bl_id| owner_indices.get(&bl_id).copied())
+            .or(sole_owner)
+            .unwrap_or(BRICK_OWNER);
+
         // Bricks with a prefab-backed mapping bypass the BrickDesc pipeline:
         // the prefab template stamps its bricks (and any dynamic sub-grids,
         // wires, and joints) straight into the world.
@@ -82,6 +110,7 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
                     material_intensity,
                     collision: from.collision,
                     visible: from.rendering,
+                    owner_index,
                 },
             );
             count_success += 1;
@@ -267,7 +296,7 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
             let mut brick = Brick {
                 id: None,
                 asset: asset_type,
-                owner_index: Some(BRICK_OWNER),
+                owner_index: Some(owner_index),
                 original_owner_index: None,
                 position,
                 rotation,
@@ -347,6 +376,87 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
         unconverted_lights: converter.unconverted_lights,
         count_success,
         count_failure,
+    }
+}
+
+/// Put Blockland IDs in their own GUID namespace so they are stable between
+/// conversions and cannot collide with Brickadia's all-zero PUBLIC owner.
+fn blockland_owner_guid(bl_id: u64) -> Guid {
+    Guid {
+        a: 0x424c_534f, // "BLSO"
+        b: 0,
+        c: (bl_id >> 32) as u32,
+        d: bl_id as u32,
+    }
+}
+
+#[cfg(test)]
+mod ownership_tests {
+    use super::*;
+    use brdb::{Brz, IntoReader, OwnerTableSoA};
+
+    #[test]
+    fn preserves_blockland_builder_as_owner() {
+        let mut save = bls::Save::new();
+        let mut source = bls::Brick::new("1x1");
+        source.owner = Some(2227);
+        save.bricks.push(source);
+
+        let report = convert(&save);
+        assert_eq!(report.world.owners.len(), 1);
+        let (guid, owner) = report.world.owners.get_index(0).unwrap();
+        assert_eq!(*guid, blockland_owner_guid(2227));
+        assert_eq!(owner.display_name, "BL_ID 2227");
+        assert!(!report.world.bricks.is_empty());
+        assert!(report.world.bricks.iter().all(|brick| {
+            brick.owner_index == Some(1) && brick.original_owner_index.is_none()
+        }));
+
+        let bytes = report.world.to_brz_vec().unwrap();
+        let reader = Brz::read_slice(&bytes).unwrap().into_reader();
+        let owners = OwnerTableSoA::try_from(reader.owners_soa().unwrap()).unwrap();
+        assert_eq!(owners.display_names, ["PUBLIC", "BL_ID 2227"]);
+        let chunks = reader.brick_chunk_index(1).unwrap();
+        for chunk in chunks {
+            let soa = reader.brick_chunk_soa(1, chunk.index).unwrap();
+            assert!(soa.owner_indices.iter().all(|&owner| owner == 1));
+        }
+    }
+
+    #[test]
+    fn sole_blockland_owner_applies_to_unstamped_bricks() {
+        let mut save = bls::Save::new();
+        let mut owned = bls::Brick::new("1x1");
+        owned.owner = Some(2227);
+        save.bricks.push(owned);
+        save.bricks.push(bls::Brick::new("1x1"));
+
+        let report = convert(&save);
+        assert_eq!(report.world.bricks.len(), 2);
+        assert!(report
+            .world
+            .bricks
+            .iter()
+            .all(|brick| brick.owner_index == Some(1)));
+    }
+
+    #[test]
+    fn multiple_owners_do_not_guess_unstamped_brick_owner() {
+        let mut save = bls::Save::new();
+        for owner in [Some(2227), Some(999999), None] {
+            let mut brick = bls::Brick::new("1x1");
+            brick.owner = owner;
+            save.bricks.push(brick);
+        }
+
+        let report = convert(&save);
+        let owners: Vec<_> = report
+            .world
+            .bricks
+            .iter()
+            .map(|brick| brick.owner_index)
+            .collect();
+        assert_eq!(owners, [Some(1), Some(2), Some(BRICK_OWNER)]);
     }
 }
 

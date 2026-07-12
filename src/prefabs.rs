@@ -378,6 +378,7 @@ pub struct InstanceStyle {
     pub material_intensity: u8,
     pub collision: bool,
     pub visible: bool,
+    pub owner_index: usize,
 }
 
 impl PrefabTemplate {
@@ -482,7 +483,7 @@ impl PrefabTemplate {
             world.add_brick_grid(
                 Entity {
                     id: Some(entity_id),
-                    owner_index: Some(0),
+                    owner_index: Some(style.owner_index as u32),
                     location,
                     rotation,
                     color_and_alpha: grid.colors.clone(),
@@ -552,7 +553,7 @@ fn build_brick(
     Brick {
         id: Some(id),
         asset: template.asset.clone(),
-        owner_index: Some(0),
+        owner_index: Some(style.owner_index),
         original_owner_index: None,
         position,
         rotation,
