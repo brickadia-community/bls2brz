@@ -48,7 +48,10 @@ in `src/lib.rs` and `src/mappings.rs`.
 ## Things intentionally dropped
 
 - bls "extra" lines (real owner IDs, events, named-brick config) — `bls` parses them, but the converter ignores them.
-- `shape_fx` (undulo/water/etc.) — no mapping.
+- `shape_fx` effects other than water — no mapping. Water-shaped stock `Nx Water`
+  bricks become invisible QA water-zone projectors on Brickadia's global main
+  grid; ordinary converted bricks use a separate frozen grid. Their component
+  defines Brickadia's fixed 72-unit water height.
 - Prints/decals — `print` field currently ignored.
 
 ## Verifying output

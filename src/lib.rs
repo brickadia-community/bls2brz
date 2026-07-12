@@ -11,6 +11,7 @@ mod lights;
 mod mappings;
 mod prefabs;
 mod prints;
+mod water;
 
 use brdb::assets::materials::{GLOW, METALLIC, PLASTIC, TRANSLUCENT_PLASTIC};
 use brdb::{
@@ -52,16 +53,28 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
     // Whether any text decal was emitted, so we register the font asset once.
     let mut used_font = false;
 
+    let mut regular_bricks = Vec::new();
     let mut non_prio = Vec::new();
     // ModTer terrain must not share the main grid: Brickadia resolves overlaps
     // within a grid, which can make terrain disappear behind ordinary bricks.
     let mut modter_bricks = Vec::new();
+    let mut has_water_zones = false;
 
     for from in &save.bricks {
+        if let Some(zone) = water::zone(from, BRICK_OWNER) {
+            // QA water must stay on Brickadia's global main grid. Its zone
+            // overlaps are evaluated against this grid rather than a sub-grid.
+            converter.world.bricks.push(zone);
+            has_water_zones = true;
+            count_success += 1;
+            continue;
+        }
+
         // Bricks with a prefab-backed mapping bypass the BrickDesc pipeline:
         // the prefab template stamps its bricks (and any dynamic sub-grids,
         // wires, and joints) straight into the world.
         if let Some(template) = prefabs::template_for(&from.name) {
+            let main_brick_start = converter.world.bricks.len();
             let center = Position {
                 x: (from.position.1 * 20.0) as i32,
                 y: (from.position.0 * 20.0) as i32,
@@ -84,6 +97,7 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
                     visible: from.rendering,
                 },
             );
+            regular_bricks.extend(converter.world.bricks.drain(main_brick_start..));
             count_success += 1;
             continue;
         }
@@ -298,12 +312,24 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
             } else if non_priority {
                 non_prio.push(brick);
             } else {
-                converter.world.bricks.push(brick);
+                regular_bricks.push(brick);
             }
         }
     }
 
-    converter.world.bricks.append(&mut non_prio);
+    regular_bricks.append(&mut non_prio);
+
+    // Keep ordinary bricks off the main grid: QA water zones only function
+    // there, while the regular build needs an independent overlap domain.
+    if !regular_bricks.is_empty() {
+        converter.world.add_brick_grid(
+            Entity {
+                frozen: true,
+                ..Default::default()
+            },
+            regular_bricks,
+        );
+    }
 
     // An entity-backed grid has its own overlap domain. Freezing the grid keeps
     // the converted terrain stationary while retaining its original placement.
@@ -340,6 +366,9 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
     // in the world's component schema and global-data tables. Do this after all
     // bricks (and their components) are in place.
     converter.world.register_used_components();
+    if has_water_zones {
+        water::register_schema(&mut converter.world.component_schema);
+    }
 
     ConvertReport {
         world: converter.world,
