@@ -15,12 +15,13 @@
 
 use brdb::assets::LiteralComponent;
 use brdb::schema::{BrdbInterned, BrdbSchema, BrdbValue};
-use brdb::{AsBrdbValue, BrdbSchemaError, SavedBrickColor};
+use brdb::{AsBrdbValue, BrdbSchemaError, SavedBrickColor, Vector3f};
 
 /// The font descriptor the decals reference. Brickadia resolves this by name
 /// through the world's external asset reference table (populated in `lib.rs`).
 pub const FONT_ASSET_TYPE: &str = "BrickFontDescriptor";
-pub const FONT_ASSET_NAME: &str = "RobotoMono";
+pub const FONT_ROBOTO_MONO: &str = "RobotoMono";
+pub const FONT_GLACIAL_INDIFFERENCE: &str = "GlacialIndifference";
 
 /// Text height for a print spanning one stud. Larger print bricks scale up from
 /// this (a 2-stud face is `2 * PER_STUD_SIZE`, etc.).
@@ -177,13 +178,18 @@ pub fn print_placement(size: (u32, u32, u32), ceiling: bool) -> PrintPlacement {
 /// The set fields mirror the game's own text-component defaults (centered
 /// anchor, white glyph, enabled outline) plus the print-specific choices
 /// (font, size, face, material); the writer fills any remaining field from the
-/// component's built-in defaults. `Font` is asset index 0, which `lib.rs`
-/// registers as the RobotoMono font descriptor.
-pub fn text_decal_component(text: &str, placement: PrintPlacement, enabled: bool) -> LiteralComponent {
+/// component's built-in defaults. `font_asset_index` identifies the RobotoMono
+/// descriptor in the world's external-asset table.
+pub fn text_decal_component(
+    text: &str,
+    placement: PrintPlacement,
+    enabled: bool,
+    font_asset_index: usize,
+) -> LiteralComponent {
     LiteralComponent::new("Component_TextDisplay").with_data([
         ("Text", Box::new(text.to_string()) as Box<dyn AsBrdbValue>),
         ("bEnabled", Box::new(enabled)),
-        ("Font", Box::new(BrdbValue::Asset(Some(0)))),
+        ("Font", Box::new(BrdbValue::Asset(Some(font_asset_index)))),
         ("LineHeight", Box::new(placement.size)),
         ("Face", Box::new(placement.face)),
         ("Material", Box::new(MATERIAL_UNLIT)),
@@ -198,6 +204,63 @@ pub fn text_decal_component(text: &str, placement: PrintPlacement, enabled: bool
         ("bOverrideColor", Box::new(true)),
         ("Outline", Box::new(OUTLINE_OUTLINED)),
         ("OutlineWidth", Box::new(OUTLINE_WIDTH)),
+    ])
+}
+
+/// Build the vehicle-spawn marker shown on the top of its converted 8x8 tile.
+/// Its values mirror the decal configured in Brickadia: black, unlit, no
+/// outline, and positioned 35 cm toward the local Y edge.
+pub fn vehicle_spawn_decal_component(enabled: bool, font_asset_index: usize) -> LiteralComponent {
+    marker_decal_component(enabled, font_asset_index, SavedBrickColor::rgb(0, 0, 0), 115.0, 35.0)
+}
+
+/// Build the spawn-point marker shown on the top of its converted 3x3 tile.
+pub fn spawn_point_decal_component(enabled: bool, font_asset_index: usize) -> LiteralComponent {
+    marker_decal_component(enabled, font_asset_index, SavedBrickColor::rgb(0, 0, 0), 30.0, 10.0)
+}
+
+/// Build the checkpoint marker shown on the top of its converted 3x3 tile.
+pub fn checkpoint_decal_component(enabled: bool, font_asset_index: usize) -> LiteralComponent {
+    marker_decal_component(enabled, font_asset_index, SavedBrickColor::rgb(255, 255, 255), 30.0, 10.0)
+}
+
+/// Build a marker glyph with the shared unlit, outline-free settings.
+fn marker_decal_component(
+    enabled: bool,
+    font_asset_index: usize,
+    color: SavedBrickColor,
+    line_height: f32,
+    offset_y: f32,
+) -> LiteralComponent {
+    LiteralComponent::new("Component_TextDisplay").with_data([
+        ("Text", Box::new("𝅉".to_string()) as Box<dyn AsBrdbValue>),
+        ("bEnabled", Box::new(enabled)),
+        ("Font", Box::new(BrdbValue::Asset(Some(font_asset_index)))),
+        ("Typeface", Box::new(0u8)), // EBRTextTypeface::Regular
+        ("Color", Box::new(color)),
+        ("bOverrideColor", Box::new(true)),
+        ("Face", Box::new(FACE_Z_POSITIVE)),
+        ("Rotation", Box::new(-90.0f32)),
+        ("bAlignToWedge", Box::new(false)),
+        ("LineHeight", Box::new(line_height)),
+        (
+            "Anchor",
+            Box::new(Vec2f {
+                x: ANCHOR_CENTER,
+                y: ANCHOR_CENTER,
+            }),
+        ),
+        (
+            "Offset",
+            Box::new(Vector3f {
+                x: 0.0,
+                y: offset_y,
+                z: 0.0,
+            }),
+        ),
+        ("LineOffset", Box::new(0.0f32)),
+        ("Material", Box::new(MATERIAL_UNLIT)),
+        ("Outline", Box::new(0u8)), // EBRTextOutline::None
     ])
 }
 

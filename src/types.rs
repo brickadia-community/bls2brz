@@ -2,6 +2,15 @@ pub use brdb::Direction;
 
 pub type BrickMapping = Vec<BrickDesc>;
 
+/// A text decal that is intrinsic to a converted brick mapping, rather than a
+/// Blockland letter print carried by the source brick.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TextDecal {
+    VehicleSpawn,
+    SpawnPoint,
+    Checkpoint,
+}
+
 /// RGBA color used throughout the mappings. brdb's own `Color` is RGB-only; the
 /// alpha channel is preserved here so `lib.rs` can translate it into a material
 /// choice (opaque vs. translucent plastic) when building the final brick.
@@ -32,6 +41,7 @@ pub struct BrickDesc {
     pub offset: (i32, i32, i32),
     pub rotation_offset: u8,
     pub color_override: Option<Color>,
+    pub material_intensity_override: Option<u8>,
     pub direction_override: Option<Direction>,
     pub non_priority: bool,
     pub microwedge_rotate: bool,
@@ -40,6 +50,7 @@ pub struct BrickDesc {
     pub modter: bool,
     pub rotate_by_direction: bool,
     pub nocollide: bool,
+    pub text_decal: Option<TextDecal>,
 }
 
 impl BrickDesc {
@@ -50,6 +61,7 @@ impl BrickDesc {
             offset: (0, 0, 0),
             rotation_offset: 1,
             color_override: None,
+            material_intensity_override: None,
             direction_override: None,
             non_priority: false,
             microwedge_rotate: false,
@@ -58,6 +70,7 @@ impl BrickDesc {
             modter: false,
             rotate_by_direction: false,
             nocollide: false,
+            text_decal: None,
         }
     }
 
@@ -78,6 +91,11 @@ impl BrickDesc {
 
     pub fn color_override(mut self, color_override: Color) -> Self {
         self.color_override = Some(color_override);
+        self
+    }
+
+    pub fn material_intensity(mut self, material_intensity: u8) -> Self {
+        self.material_intensity_override = Some(material_intensity);
         self
     }
 
@@ -118,6 +136,11 @@ impl BrickDesc {
 
     pub fn nocollide(mut self) -> Self {
         self.nocollide = true;
+        self
+    }
+
+    pub fn text_decal(mut self, text_decal: TextDecal) -> Self {
+        self.text_decal = Some(text_decal);
         self
     }
 }

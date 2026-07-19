@@ -11,6 +11,7 @@ mod lights;
 mod mappings;
 mod prefabs;
 mod prints;
+mod spawns;
 
 use brdb::assets::materials::{GLOW, METALLIC, PLASTIC, TRANSLUCENT_PLASTIC};
 use brdb::{
@@ -18,7 +19,7 @@ use brdb::{
     World,
 };
 use mappings::{BRICK_MAP_LITERAL, BRICK_MAP_REGEX};
-use types::{BrickDesc, BrickMapping, Color};
+use types::{BrickDesc, BrickMapping, Color, TextDecal};
 
 const BRICK_OWNER: usize = 0;
 
@@ -70,9 +71,6 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
 
     let mut count_success = 0;
     let mut count_failure = 0;
-
-    // Whether any text decal was emitted, so we register the font asset once.
-    let mut used_font = false;
 
     let mut non_prio = Vec::new();
     // ModTer terrain must not share the main grid: Brickadia resolves overlaps
@@ -153,16 +151,18 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
         // sized/faced from that brick's geometry.
         let ceiling = from.name.contains("Ceiling") || from.name.starts_with("Bottom Print");
         let print_size = mappings.first().map(|d| d.size);
-        let mut text_component = from
-            .print
-            .as_deref()
+        let mut text_component = (!mappings.iter().any(|d| d.text_decal.is_some()))
+            .then_some(())
+            .and(from.print.as_deref())
             .filter(|_| prints::is_regular_print_brick(&from.name))
             .and_then(prints::letter_from_print)
             .map(|glyph| {
                 let placement = print_size
                     .map(|size| prints::print_placement(size, ceiling))
                     .unwrap_or_default();
-                prints::text_decal_component(glyph, placement, from.rendering)
+                let font_asset_index =
+                    font_asset_index(&mut converter.world, prints::FONT_ROBOTO_MONO);
+                prints::text_decal_component(glyph, placement, from.rendering, font_asset_index)
             });
 
         // A `CenterPrint` event becomes a `Component_Interact` that shows its
@@ -180,6 +180,7 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
             offset,
             rotation_offset,
             color_override,
+            material_intensity_override,
             mut direction_override,
             non_priority,
             microwedge_rotate,
@@ -188,6 +189,7 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
             modter,
             rotate_by_direction,
             nocollide,
+            text_decal,
         } in mappings
         {
             let mut rotation = (from.angle + rotation_offset) % 4;
@@ -211,7 +213,8 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
                     .unwrap_or(Color::from_rgba(255, 255, 255, 255)),
             };
 
-            let (material, material_intensity) = resolve_material(resolved, from.color_fx);
+            let (material, default_material_intensity) = resolve_material(resolved, from.color_fx);
+            let material_intensity = material_intensity_override.unwrap_or(default_material_intensity);
 
             // convert a vertical slope to microwedge
             if microwedge_rotate {
@@ -316,7 +319,27 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
             }
             if let Some(text) = text_component.take() {
                 brick.add_component(text);
-                used_font = true;
+            }
+            if let Some(text_decal) = text_decal {
+                let font_asset_index =
+                    font_asset_index(&mut converter.world, prints::FONT_GLACIAL_INDIFFERENCE);
+                let decal = match text_decal {
+                    TextDecal::VehicleSpawn => {
+                        prints::vehicle_spawn_decal_component(from.rendering, font_asset_index)
+                    }
+                    TextDecal::SpawnPoint => {
+                        prints::spawn_point_decal_component(from.rendering, font_asset_index)
+                    }
+                    TextDecal::Checkpoint => {
+                        prints::checkpoint_decal_component(from.rendering, font_asset_index)
+                    }
+                };
+                brick.add_component(decal);
+                match text_decal {
+                    TextDecal::VehicleSpawn => {}
+                    TextDecal::SpawnPoint => brick.add_component(spawns::spawn_point_component()),
+                    TextDecal::Checkpoint => brick.add_component(spawns::checkpoint_component()),
+                }
             }
             if let Some(interact) = interact_component.take() {
                 brick.add_component(interact);
@@ -346,25 +369,6 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
         );
     }
 
-    // Text decals reference the RobotoMono font by index into the world's
-    // external asset table; register it (as index 0) before the writer resolves
-    // the `Font` property. Only added when a decal actually uses it.
-    if used_font {
-        converter
-            .world
-            .global_data
-            .external_asset_types
-            .insert(prints::FONT_ASSET_TYPE.to_string());
-        converter
-            .world
-            .global_data
-            .external_asset_references
-            .insert((
-                prints::FONT_ASSET_TYPE.to_string(),
-                prints::FONT_ASSET_NAME.to_string(),
-            ));
-    }
-
     // The writer requires every component type used on a brick to be registered
     // in the world's component schema and global-data tables. Do this after all
     // bricks (and their components) are in place.
@@ -388,6 +392,21 @@ fn blockland_owner_guid(bl_id: u64) -> Guid {
         c: (bl_id >> 32) as u32,
         d: bl_id as u32,
     }
+}
+
+/// Register a text font if needed and return its stable index in the world's
+/// external-asset table. Prefabs may add their own external assets first, so
+/// text decals must not assume their font is always at index zero.
+fn font_asset_index(world: &mut World, font_name: &str) -> usize {
+    world
+        .global_data
+        .external_asset_types
+        .insert(prints::FONT_ASSET_TYPE.to_string());
+    world
+        .global_data
+        .external_asset_references
+        .insert_full((prints::FONT_ASSET_TYPE.to_string(), font_name.to_string()))
+        .0
 }
 
 #[cfg(test)]

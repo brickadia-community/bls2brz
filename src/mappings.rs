@@ -1,6 +1,6 @@
 #![allow(clippy::identity_op)]
 
-use crate::types::{BrickDesc, BrickMapping};
+use crate::types::{BrickDesc, BrickMapping, TextDecal};
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use std::collections::{HashMap, HashSet};
@@ -145,51 +145,34 @@ lazy_static! {
             BrickDesc::new("PB_DefaultPole").size((2, 2, 8)).offset((-15, 0, 2)),
         ],
 
-        "Vehicle Spawn" => vec![
-            BrickDesc::new("PB_DefaultSmoothTile").size((10, 30, 2)).offset((10, 30, 0)),
-            BrickDesc::new("PB_DefaultSmoothTile").size((10, 30, 2)).offset((-10, -30, 0)),
-            BrickDesc::new("PB_DefaultSmoothTile").size((30, 10, 2)).offset((30, -10, 0)),
-            BrickDesc::new("PB_DefaultSmoothTile").size((30, 10, 2)).offset((-30, 10, 0)),
-            BrickDesc::new("PB_DefaultMicroWedge").size((10, 20, 2)).offset((0, -10, 0)).rotation_offset(1),
-            BrickDesc::new("PB_DefaultMicroWedge").size((20, 10, 2)).offset((0, 10, 0)).rotation_offset(2),
-            BrickDesc::new("PB_DefaultMicroWedge").size((10, 20, 2)).offset((0, -10, 0)).rotation_offset(3)
-                .color_override(Color::from_rgba(0, 0, 0, 255)),
-            BrickDesc::new("PB_DefaultMicroWedge").size((20, 10, 2)).offset((0, 10, 0)).rotation_offset(0)
-                .color_override(Color::from_rgba(0, 0, 0, 255)),
-        ],
+        "Vehicle Spawn" => BrickDesc::new("PB_DefaultTile")
+            .size((40, 40, 2))
+            .text_decal(TextDecal::VehicleSpawn),
 
         "Spawn Point" => vec![
-            BrickDesc::new("PB_DefaultSmoothTile").size((5, 10, 2)).offset((5, 10, -28)),
-            BrickDesc::new("PB_DefaultSmoothTile").size((5, 10, 2)).offset((-5, -10, -28)),
-            BrickDesc::new("PB_DefaultSmoothTile").size((10, 5, 2)).offset((10, -5, -28)),
-            BrickDesc::new("PB_DefaultSmoothTile").size((10, 5, 2)).offset((-10, 5, -28)),
-            BrickDesc::new("PB_DefaultMicroWedge").size((2, 5, 2)).offset((0, -3, -28)).rotation_offset(1),
-            BrickDesc::new("PB_DefaultMicroWedge").size((5, 2, 2)).offset((0, 3, -28)).rotation_offset(2),
-            BrickDesc::new("PB_DefaultMicroWedge").size((2, 5, 2)).offset((0, -3, -28)).rotation_offset(3)
-                .color_override(Color::from_rgba(0, 0, 0, 255)),
-            BrickDesc::new("PB_DefaultMicroWedge").size((5, 2, 2)).offset((0, 3, -28)).rotation_offset(0)
-                .color_override(Color::from_rgba(0, 0, 0, 255)),
-            BrickDesc::new("PB_DefaultMicroBrick").size((1, 5, 2)).offset((0, 0, -28))
-                .color_override(Color::from_rgba(0, 0, 0, 255)),
-            BrickDesc::new("PB_DefaultMicroBrick").size((15, 15, 28)).offset((0, 0, 2))
-                .color_override(Color::from_rgba(150, 150, 150, 180)).nocollide(),
+            BrickDesc::new("PB_DefaultTile")
+                .size((15, 15, 2))
+                .offset((0, 0, -28))
+                .text_decal(TextDecal::SpawnPoint),
+            BrickDesc::new("PB_DefaultMicroBrick")
+                .size((15, 15, 28))
+                .offset((0, 0, 2))
+                .color_override(Color::from_rgba(150, 150, 150, 180))
+                .material_intensity(2)
+                .nocollide(),
         ],
 
         "Checkpoint" => vec![
-            BrickDesc::new("PB_DefaultSmoothTile").size((5, 10, 2)).offset((5, 10, -28)),
-            BrickDesc::new("PB_DefaultSmoothTile").size((5, 10, 2)).offset((-5, -10, -28)),
-            BrickDesc::new("PB_DefaultSmoothTile").size((10, 5, 2)).offset((10, -5, -28)),
-            BrickDesc::new("PB_DefaultSmoothTile").size((10, 5, 2)).offset((-10, 5, -28)),
-            BrickDesc::new("PB_DefaultMicroWedge").size((2, 5, 2)).offset((0, -3, -28)).rotation_offset(1),
-            BrickDesc::new("PB_DefaultMicroWedge").size((5, 2, 2)).offset((0, 3, -28)).rotation_offset(2),
-            BrickDesc::new("PB_DefaultMicroWedge").size((2, 5, 2)).offset((0, -3, -28)).rotation_offset(3)
-                .color_override(Color::from_rgba(254, 254, 232, 255)),
-            BrickDesc::new("PB_DefaultMicroWedge").size((5, 2, 2)).offset((0, 3, -28)).rotation_offset(0)
-                .color_override(Color::from_rgba(254, 254, 232, 255)),
-            BrickDesc::new("PB_DefaultMicroBrick").size((1, 5, 2)).offset((0, 0, -28))
-                .color_override(Color::from_rgba(254, 254, 232, 255)),
-            BrickDesc::new("PB_DefaultMicroBrick").size((15, 15, 28)).offset((0, 0, 2))
-                .color_override(Color::from_rgba(100, 100, 100, 180)).nocollide(),
+            BrickDesc::new("PB_DefaultTile")
+                .size((15, 15, 2))
+                .offset((0, 0, -28))
+                .text_decal(TextDecal::Checkpoint),
+            BrickDesc::new("PB_DefaultMicroBrick")
+                .size((15, 15, 28))
+                .offset((0, 0, 2))
+                .color_override(Color::from_rgba(100, 100, 100, 180))
+                .material_intensity(2)
+                .nocollide(),
         ],
 
         "2x2x5 Lattice" => vec![
@@ -1883,4 +1866,47 @@ lazy_static! {
             ])
         },
     ];
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn vehicle_spawn_is_one_tiled_decal_brick() {
+        let mapping = BRICK_MAP_LITERAL.get("Vehicle Spawn").unwrap();
+        assert_eq!(mapping.len(), 1);
+
+        let brick = &mapping[0];
+        assert_eq!(brick.asset, "PB_DefaultTile");
+        assert_eq!(brick.size, (40, 40, 2));
+        assert_eq!(brick.text_decal, Some(TextDecal::VehicleSpawn));
+    }
+
+    fn assert_marker_mapping(name: &str, decal: TextDecal) {
+        let mapping = BRICK_MAP_LITERAL.get(name).unwrap();
+        assert_eq!(mapping.len(), 2);
+
+        let base = &mapping[0];
+        assert_eq!(base.asset, "PB_DefaultTile");
+        assert_eq!(base.size, (15, 15, 2));
+        assert_eq!(base.offset, (0, 0, -28));
+        assert_eq!(base.text_decal, Some(decal));
+
+        let upper = &mapping[1];
+        assert_eq!(upper.asset, "PB_DefaultMicroBrick");
+        assert_eq!(upper.size, (15, 15, 28));
+        assert_eq!(upper.material_intensity_override, Some(2));
+        assert!(upper.nocollide);
+    }
+
+    #[test]
+    fn spawn_point_is_a_single_tiled_base_with_black_marker() {
+        assert_marker_mapping("Spawn Point", TextDecal::SpawnPoint);
+    }
+
+    #[test]
+    fn checkpoint_is_a_single_tiled_base_with_white_marker() {
+        assert_marker_mapping("Checkpoint", TextDecal::Checkpoint);
+    }
 }
