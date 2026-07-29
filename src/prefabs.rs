@@ -14,12 +14,12 @@
 
 use std::collections::HashMap;
 
+use brdb::schema::BrdbValue;
 use brdb::{
     assets::LiteralComponent, AsBrdbValue, BString, Brick, BrickType, Brz, Collision, Direction,
     Entity, EntityColors, IntoReader, LocalWirePortSource, Position, Quat4f, RemoteWirePortSource,
     Rotation, Vector3f, WirePort, WirePortTarget, World,
 };
-use brdb::schema::BrdbValue;
 use lazy_static::lazy_static;
 
 /// The `Plain Door.brz` prefab: a door frame on the main grid whose panel is a
@@ -126,11 +126,8 @@ impl PrefabTemplate {
         let data = db.global_data()?;
         let components_schema = db.components_schema()?;
 
-        let external_assets: Vec<(String, String)> = data
-            .external_asset_references
-            .iter()
-            .cloned()
-            .collect();
+        let external_assets: Vec<(String, String)> =
+            data.external_asset_references.iter().cloned().collect();
 
         // Sub-grid entity persistent index -> template grid slot.
         let mut grid_slots: HashMap<usize, usize> = HashMap::new();
@@ -223,11 +220,10 @@ impl PrefabTemplate {
                             let mut fields = Vec::new();
                             if has_struct {
                                 let s = struct_iter.next().ok_or("component structs exhausted")?;
-                                let struct_def = components_schema
-                                    .get_struct(s.get_name())
-                                    .ok_or_else(|| {
-                                        format!("unknown component struct {}", s.get_name())
-                                    })?;
+                                let struct_def =
+                                    components_schema.get_struct(s.get_name()).ok_or_else(
+                                        || format!("unknown component struct {}", s.get_name()),
+                                    )?;
                                 for prop_id in struct_def.keys() {
                                     let Some(prop) = prop_id.get(&components_schema) else {
                                         continue;
@@ -386,7 +382,13 @@ impl PrefabTemplate {
     /// Blockland brick's `angle`. Main-grid bricks land on the world's main
     /// grid; each prefab sub-grid becomes a fresh dynamic grid entity, jointed
     /// to its instance's joint brick.
-    pub fn instantiate(&self, world: &mut World, center: Position, angle: u8, style: &InstanceStyle) {
+    pub fn instantiate(
+        &self,
+        world: &mut World,
+        center: Position,
+        angle: u8,
+        style: &InstanceStyle,
+    ) {
         let k = (angle + self.angle_offset) % 4;
 
         // Register the prefab's external asset references (e.g. interact
@@ -432,9 +434,7 @@ impl PrefabTemplate {
 
         let grid_entity_ids: Vec<usize> = self.grids.iter().map(|_| Brick::next_id()).collect();
         let mut grid_brick_ids: Vec<Vec<usize>> = Vec::with_capacity(self.grids.len());
-        for (grid_slot, (grid, &entity_id)) in
-            self.grids.iter().zip(&grid_entity_ids).enumerate()
-        {
+        for (grid_slot, (grid, &entity_id)) in self.grids.iter().zip(&grid_entity_ids).enumerate() {
             let ids: Vec<usize> = grid.bricks.iter().map(|_| Brick::next_id()).collect();
             let bricks: Vec<Brick> = grid
                 .bricks
@@ -524,7 +524,6 @@ impl PrefabTemplate {
             );
         }
     }
-
 }
 
 fn build_brick(

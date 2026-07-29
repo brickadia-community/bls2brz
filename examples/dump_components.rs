@@ -1,7 +1,9 @@
 use bls2brz::brdb::{BrReader, Brz, IntoReader};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let p = std::env::args().nth(1).expect("usage: dump_components <file.brz>");
+    let p = std::env::args()
+        .nth(1)
+        .expect("usage: dump_components <file.brz>");
     let db: BrReader<_> = Brz::open(&p)?.into_reader();
     let gd = db.global_data()?;
     let types = &gd.component_type_names;

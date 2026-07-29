@@ -16,7 +16,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let hex: Vec<String> = chunk.iter().map(|b| format!("{b:02x}")).collect();
         let asc: String = chunk
             .iter()
-            .map(|&b| if (0x20..0x7f).contains(&b) { b as char } else { '.' })
+            .map(|&b| {
+                if (0x20..0x7f).contains(&b) {
+                    b as char
+                } else {
+                    '.'
+                }
+            })
             .collect();
         println!("{:04x}  {:<48}  {}", i * 16, hex.join(" "), asc);
     }

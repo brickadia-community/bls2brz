@@ -162,7 +162,12 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
                     .unwrap_or_default();
                 let font_asset_index =
                     font_asset_index(&mut converter.world, prints::FONT_ROBOTO_MONO);
-                prints::text_decal_component(glyph, placement, from.rendering, font_asset_index)
+                prints::text_decal_component(
+                    glyph.as_ref(),
+                    placement,
+                    from.rendering,
+                    font_asset_index,
+                )
             });
 
         // A `CenterPrint` event becomes a `Component_Interact` that shows its
@@ -214,7 +219,8 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
             };
 
             let (material, default_material_intensity) = resolve_material(resolved, from.color_fx);
-            let material_intensity = material_intensity_override.unwrap_or(default_material_intensity);
+            let material_intensity =
+                material_intensity_override.unwrap_or(default_material_intensity);
 
             // convert a vertical slope to microwedge
             if microwedge_rotate {
@@ -410,6 +416,27 @@ fn font_asset_index(world: &mut World, font_name: &str) -> usize {
 }
 
 #[cfg(test)]
+mod grid_tests {
+    use super::*;
+
+    #[test]
+    fn no_overlap_cube_shares_modters_frozen_grid() {
+        let mut save = bls::Save::new();
+        save.bricks.push(bls::Brick::new("4x Cube - No Overlap"));
+        save.bricks.push(bls::Brick::new("4x Ramp"));
+
+        let report = convert(&save);
+
+        assert!(report.world.bricks.is_empty());
+        assert_eq!(report.world.grids.len(), 1);
+
+        let (entity, bricks) = &report.world.grids[0];
+        assert!(entity.frozen);
+        assert_eq!(bricks.len(), 2);
+    }
+}
+
+#[cfg(test)]
 mod ownership_tests {
     use super::*;
     use brdb::{Brz, IntoReader, OwnerTableSoA};
@@ -427,9 +454,11 @@ mod ownership_tests {
         assert_eq!(*guid, blockland_owner_guid(2227));
         assert_eq!(owner.display_name, "BL_ID 2227");
         assert!(!report.world.bricks.is_empty());
-        assert!(report.world.bricks.iter().all(|brick| {
-            brick.owner_index == Some(1) && brick.original_owner_index.is_none()
-        }));
+        assert!(report
+            .world
+            .bricks
+            .iter()
+            .all(|brick| { brick.owner_index == Some(1) && brick.original_owner_index.is_none() }));
 
         let bytes = report.world.to_brz_vec().unwrap();
         let reader = Brz::read_slice(&bytes).unwrap().into_reader();

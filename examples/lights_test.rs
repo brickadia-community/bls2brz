@@ -45,11 +45,18 @@ const COLS: usize = 6;
 const SPACING: f32 = 4.0;
 
 fn main() {
-    let out = std::env::args().nth(1).expect("usage: lights_test <output.bls>");
+    let out = std::env::args()
+        .nth(1)
+        .expect("usage: lights_test <output.bls>");
 
     let mut save = Save::new();
     // A light grey so the bricks read against the void.
-    save.colors[0] = Color { r: 0.8, g: 0.8, b: 0.8, a: 1.0 };
+    save.colors[0] = Color {
+        r: 0.8,
+        g: 0.8,
+        b: 0.8,
+        a: 1.0,
+    };
 
     for (i, name) in LIGHTS.iter().enumerate() {
         let col = (i % COLS) as f32;

@@ -7,7 +7,9 @@ use bls2brz::brdb::{BrFsReader, Brz, IntoReader};
 const BRICK_COMPONENT_SOA: &str = "BRSavedComponentChunkSoA";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let path = std::env::args().nth(1).expect("usage: strict_read <file.brz>");
+    let path = std::env::args()
+        .nth(1)
+        .expect("usage: strict_read <file.brz>");
     let reader = Brz::open(&path)?.into_reader();
     let gd = reader.global_data()?;
     let struct_names = &gd.component_data_struct_names;

@@ -6,7 +6,9 @@
 use bls2brz::brdb::{Brz, IntoReader};
 
 fn main() {
-    let path = std::env::args().nth(1).expect("usage: read_check <file.brz>");
+    let path = std::env::args()
+        .nth(1)
+        .expect("usage: read_check <file.brz>");
     let reader = Brz::open(&path).expect("open brz").into_reader();
 
     use bls2brz::brdb::BrFsReader;
@@ -23,7 +25,10 @@ fn main() {
         for meta in chunks {
             match reader.brick_chunk_soa(grid_id, meta.index) {
                 Ok(soa) => {
-                    eprintln!("grid {grid_id} chunk {}: {} bricks OK", meta.index, meta.num_bricks);
+                    eprintln!(
+                        "grid {grid_id} chunk {}: {} bricks OK",
+                        meta.index, meta.num_bricks
+                    );
                     eprintln!("  material_indices: {:?}", soa.material_indices);
                     eprintln!("  colors_and_alphas: {:?}", &soa.colors_and_alphas);
                     eprintln!("  brick_type_indices: {:?}", soa.brick_type_indices);
@@ -40,8 +45,10 @@ fn main() {
                             let r = c.get("Radius");
                             let color = c.get("Color").and_then(|v| match v {
                                 bls2brz::brdb::schema::BrdbValue::Struct(s) => Some((
-                                    s.get("R").cloned(), s.get("G").cloned(),
-                                    s.get("B").cloned(), s.get("A").cloned(),
+                                    s.get("R").cloned(),
+                                    s.get("G").cloned(),
+                                    s.get("B").cloned(),
+                                    s.get("A").cloned(),
                                 )),
                                 _ => None,
                             });

@@ -1,13 +1,15 @@
 #![allow(clippy::identity_op)]
 
+use crate::types::Color;
+use crate::types::Direction::*;
 use crate::types::{BrickDesc, BrickMapping, TextDecal};
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use std::collections::{HashMap, HashSet};
-use crate::types::Color;
-use crate::types::Direction::*;
 
 type RegexHandler = Box<dyn Fn(Captures, &bls::Brick) -> Option<BrickMapping> + Sync>;
+
+const DIRT_COLOR: Color = Color::from_rgba(100, 50, 0, 255);
 
 lazy_static! {
     static ref TILE_PRINTS: HashSet<&'static str> = vec![
@@ -153,10 +155,12 @@ lazy_static! {
             BrickDesc::new("PB_DefaultTile")
                 .size((15, 15, 2))
                 .offset((0, 0, -28))
+                .rotation_offset(0)
                 .text_decal(TextDecal::SpawnPoint),
             BrickDesc::new("PB_DefaultMicroBrick")
                 .size((15, 15, 28))
                 .offset((0, 0, 2))
+                .rotation_offset(0)
                 .color_override(Color::from_rgba(150, 150, 150, 180))
                 .material_intensity(2)
                 .nocollide(),
@@ -166,10 +170,12 @@ lazy_static! {
             BrickDesc::new("PB_DefaultTile")
                 .size((15, 15, 2))
                 .offset((0, 0, -28))
+                .rotation_offset(0)
                 .text_decal(TextDecal::Checkpoint),
             BrickDesc::new("PB_DefaultMicroBrick")
                 .size((15, 15, 28))
                 .offset((0, 0, 2))
+                .rotation_offset(0)
                 .color_override(Color::from_rgba(100, 100, 100, 180))
                 .material_intensity(2)
                 .nocollide(),
@@ -744,6 +750,8 @@ lazy_static! {
         // Brick_4x4F_Print_Plates by Racerboy (duh)
         // Brick_4x4F_Print_Plate by AndreZ (A 4x4 you can BUILD on.)
         //==================================================================================
+        "1x2F Print Plate" => BrickDesc::new("PB_DefaultSmoothTile").size((5, 10, 2)),
+        "2x2F Print Plate" => BrickDesc::new("PB_DefaultSmoothTile").size((10, 10, 2)),
         "4x4f_PrintPlate" => BrickDesc::new("PB_DefaultSmoothTile").size((20, 20, 2)),
         "4x4f_PrintPlateC" => BrickDesc::new("PB_DefaultMicroBrick").size((20, 20, 2)),
 
@@ -753,6 +761,10 @@ lazy_static! {
         "1x1F Ceiling Print Plate" => BrickDesc::new("PB_DefaultMicroBrick").size((5, 5, 2)),
         "1x2F Ceiling Print Plate" => BrickDesc::new("PB_DefaultMicroBrick").size((10, 5, 2)),
         "2x2F Ceiling Print Plate" => BrickDesc::new("PB_DefaultMicroBrick").size((10, 10, 2)),
+        "4x4F Ceiling Print Plate" => BrickDesc::new("PB_DefaultMicroBrick").size((20, 20, 2)),
+        "Bottom Print 1x1F" => BrickDesc::new("PB_DefaultMicroBrick").size((5, 5, 2)),
+        "Bottom Print 2x2F" => BrickDesc::new("PB_DefaultMicroBrick").size((10, 10, 2)),
+        "4-Sided Print 1x1" => BrickDesc::new("PB_DefaultBrick").size((5, 5, 6)),
 
         //==================================================================================
         // Brick_4x4_Round by Niven and Tophius (A must need, for any build.)
@@ -1157,9 +1169,39 @@ lazy_static! {
             BrickDesc::new("PB_DefaultMicroBrick").size((1, 4, 6)).offset((1, 4, 0)),
         ],
 
-        // Optimized Cubes
+        // Optimized Cubes: Cubescape Optimizer
+        "4x Cube 1h" => BrickDesc::new("PB_DefaultBrick").size((20, 40, 20)),
+        "4x Cube 2h" => BrickDesc::new("PB_DefaultBrick").size((20, 60, 20)),
+        "4x Cube 3h" => BrickDesc::new("PB_DefaultBrick").size((20, 80, 20)),
+        "4x Cube 4h" => BrickDesc::new("PB_DefaultBrick").size((40, 40, 20)),
+        "4x Cube 1v" => BrickDesc::new("PB_DefaultMicroBrick").size((20, 20, 40)),
+        "4x Cube 2v" => BrickDesc::new("PB_DefaultMicroBrick").size((20, 20, 60)),
+        "4x Cube 3v" => BrickDesc::new("PB_DefaultMicroBrick").size((20, 20, 80)),
+        "4x Cube 4v" => BrickDesc::new("PB_DefaultMicroBrick").size((20, 40, 40)),
+        "8x Cube 1h" => BrickDesc::new("PB_DefaultBrick").size((40, 80, 40)),
+        "8x Cube 2h" => BrickDesc::new("PB_DefaultBrick").size((40, 120, 40)),
+        "8x Cube 3h" => BrickDesc::new("PB_DefaultBrick").size((40, 160, 40)),
+        "8x Cube 4h" => BrickDesc::new("PB_DefaultBrick").size((80, 80, 40)),
+        "8x Cube 1v" => BrickDesc::new("PB_DefaultMicroBrick").size((40, 40, 80)),
+        "8x Cube 2v" => BrickDesc::new("PB_DefaultMicroBrick").size((40, 40, 120)),
+        "8x Cube 3v" => BrickDesc::new("PB_DefaultMicroBrick").size((40, 40, 160)),
+        "8x Cube 4v" => BrickDesc::new("PB_DefaultMicroBrick").size((40, 80, 80)),
+        "16x Cube 1h" => BrickDesc::new("PB_DefaultBrick").size((80, 160, 80)),
+        "16x Cube 2h" => BrickDesc::new("PB_DefaultBrick").size((80, 240, 80)),
+        "16x Cube 3h" => BrickDesc::new("PB_DefaultBrick").size((80, 320, 80)),
+        "16x Cube 4h" => BrickDesc::new("PB_DefaultBrick").size((160, 160, 80)),
+        "16x Cube 1v" => BrickDesc::new("PB_DefaultMicroBrick").size((80, 80, 160)),
+        "16x Cube 2v" => BrickDesc::new("PB_DefaultMicroBrick").size((80, 80, 240)),
+        "16x Cube 3v" => BrickDesc::new("PB_DefaultMicroBrick").size((80, 80, 320)),
+        "16x Cube 4v" => BrickDesc::new("PB_DefaultMicroBrick").size((80, 160, 160)),
+        "32x Cube 1h" => BrickDesc::new("PB_DefaultBrick").size((160, 320, 160)),
+        "32x Cube 4h" => BrickDesc::new("PB_DefaultBrick").size((320, 320, 160)),
+        "32x Cube 1v" => BrickDesc::new("PB_DefaultMicroBrick").size((160, 160, 320)),
+        "32x Cube 4v" => BrickDesc::new("PB_DefaultMicroBrick").size((160, 320, 320)),
+
+        // Optimized Cubes: other packs
         "2x Cube 4x V" => BrickDesc::new("PB_DefaultMicroBrick").size((10, 10, 40)),
-        "4x Cube 4h" => BrickDesc::new("PB_DefaultBrick").size((80, 80, 20)),
+        "2x Cube 4x H" => BrickDesc::new("PB_DefaultMicroBrick").size((10, 40, 10)),
         "4x Cube 4x H" => BrickDesc::new("PB_DefaultMicroBrick").size((20, 80, 20)),
         "4x Cube 2x V" => BrickDesc::new("PB_DefaultMicroBrick").size((20, 20, 40)),
         "4x Cube 4x V" => BrickDesc::new("PB_DefaultMicroBrick").size((20, 20, 80)),
@@ -1167,11 +1209,50 @@ lazy_static! {
         "2x Cube 4x4 V" => BrickDesc::new("PB_DefaultMicroBrick").size((10, 20, 20)),
         "4x8 Cube 1/2h" => BrickDesc::new("PB_DefaultMicroBrick").size((20, 40, 10)),
         "4x16 Cube 1/2h" => BrickDesc::new("PB_DefaultMicroBrick").size((20, 80, 10)),
-        "4x Cube - No Overlap" => BrickDesc::new("PB_DefaultBrick").size((20, 20, 20)).non_priority(true),
+        "32x Cube 1/16h" => BrickDesc::new("PB_DefaultMicroBrick").size((160, 160, 10)),
+        "4x Cube - No Overlap" => BrickDesc::new("PB_DefaultBrick")
+            .size((20, 20, 20))
+            .non_priority(true)
+            .modter(true),
         "16x Cube 1/8h" => BrickDesc::new("PB_DefaultMicroBrick").size((80, 80, 10)),
+        "16x Cube Fixed" => BrickDesc::new("PB_DefaultBrick").size((80, 80, 80)),
+        " 4x Cube Fix" => BrickDesc::new("PB_DefaultBrick").size((20, 20, 20)),
+        "4x Cube Wall" => BrickDesc::new("PB_DefaultMicroBrick").size((5, 20, 20)),
+        "8x Cube Wall" => BrickDesc::new("PB_DefaultMicroBrick").size((5, 40, 40)),
         // Cube Prints
         "2x Cube Print" => BrickDesc::new("PB_DefaultMicroBrick").size((10, 10, 10)),
+        "4x Cube Print" => BrickDesc::new("PB_DefaultMicroBrick").size((20, 20, 20)),
         "6x Cube Print" => BrickDesc::new("PB_DefaultMicroBrick").size((30, 30, 30)),
+        "8x Cube Print" => BrickDesc::new("PB_DefaultMicroBrick").size((40, 40, 40)),
+
+        //==================================================================================
+        // Trench Warfare
+        //==================================================================================
+        "2x Cube Dirt" => BrickDesc::new("PB_DefaultBrick")
+            .size((10, 10, 10))
+            .color_override(DIRT_COLOR),
+        "4x Cube Dirt" => BrickDesc::new("PB_DefaultBrick")
+            .size((20, 20, 20))
+            .color_override(DIRT_COLOR),
+        "8x Cube Dirt" => BrickDesc::new("PB_DefaultBrick")
+            .size((40, 40, 40))
+            .color_override(DIRT_COLOR),
+        "16x Cube Dirt" => BrickDesc::new("PB_DefaultBrick")
+            .size((80, 80, 80))
+            .color_override(DIRT_COLOR),
+        "32x Cube Dirt" => BrickDesc::new("PB_DefaultBrick")
+            .size((160, 160, 160))
+            .color_override(DIRT_COLOR),
+
+        //==================================================================================
+        // Farming
+        //==================================================================================
+        "4x4 Dirt" => BrickDesc::new("PB_DefaultBrick")
+            .size((20, 20, 6))
+            .color_override(DIRT_COLOR),
+        "8x8 Dirt" => BrickDesc::new("PB_DefaultBrick")
+            .size((40, 40, 6))
+            .color_override(DIRT_COLOR),
 
         //==================================================================================
         // Brick_Slanted by siba and Masterlegodude (6 slanted bricks)
@@ -1891,11 +1972,13 @@ mod tests {
         assert_eq!(base.asset, "PB_DefaultTile");
         assert_eq!(base.size, (15, 15, 2));
         assert_eq!(base.offset, (0, 0, -28));
+        assert_eq!(base.rotation_offset, 0);
         assert_eq!(base.text_decal, Some(decal));
 
         let upper = &mapping[1];
         assert_eq!(upper.asset, "PB_DefaultMicroBrick");
         assert_eq!(upper.size, (15, 15, 28));
+        assert_eq!(upper.rotation_offset, 0);
         assert_eq!(upper.material_intensity_override, Some(2));
         assert!(upper.nocollide);
     }
@@ -1908,5 +1991,149 @@ mod tests {
     #[test]
     fn checkpoint_is_a_single_tiled_base_with_white_marker() {
         assert_marker_mapping("Checkpoint", TextDecal::Checkpoint);
+    }
+
+    fn assert_single_brick_mapping(
+        name: &str,
+        expected_asset: &str,
+        expected_size: (u32, u32, u32),
+    ) {
+        let mapping = BRICK_MAP_LITERAL.get(name).unwrap();
+        assert_eq!(mapping.len(), 1);
+        assert_eq!(mapping[0].asset, expected_asset);
+        assert_eq!(mapping[0].size, expected_size);
+    }
+
+    #[test]
+    fn maps_cube_aliases_like_their_regular_cubes() {
+        assert_single_brick_mapping("16x Cube Fixed", "PB_DefaultBrick", (80, 80, 80));
+        assert_single_brick_mapping(" 4x Cube Fix", "PB_DefaultBrick", (20, 20, 20));
+    }
+
+    #[test]
+    fn maps_cubescape_optimizer_cubes_from_blb_dimensions() {
+        let cases = [
+            ("4x Cube 1h", "PB_DefaultBrick", (20, 40, 20)),
+            ("4x Cube 2h", "PB_DefaultBrick", (20, 60, 20)),
+            ("4x Cube 3h", "PB_DefaultBrick", (20, 80, 20)),
+            ("4x Cube 4h", "PB_DefaultBrick", (40, 40, 20)),
+            ("4x Cube 1v", "PB_DefaultMicroBrick", (20, 20, 40)),
+            ("4x Cube 2v", "PB_DefaultMicroBrick", (20, 20, 60)),
+            ("4x Cube 3v", "PB_DefaultMicroBrick", (20, 20, 80)),
+            ("4x Cube 4v", "PB_DefaultMicroBrick", (20, 40, 40)),
+            ("8x Cube 1h", "PB_DefaultBrick", (40, 80, 40)),
+            ("8x Cube 2h", "PB_DefaultBrick", (40, 120, 40)),
+            ("8x Cube 3h", "PB_DefaultBrick", (40, 160, 40)),
+            ("8x Cube 4h", "PB_DefaultBrick", (80, 80, 40)),
+            ("8x Cube 1v", "PB_DefaultMicroBrick", (40, 40, 80)),
+            ("8x Cube 2v", "PB_DefaultMicroBrick", (40, 40, 120)),
+            ("8x Cube 3v", "PB_DefaultMicroBrick", (40, 40, 160)),
+            ("8x Cube 4v", "PB_DefaultMicroBrick", (40, 80, 80)),
+            ("16x Cube 1h", "PB_DefaultBrick", (80, 160, 80)),
+            ("16x Cube 2h", "PB_DefaultBrick", (80, 240, 80)),
+            ("16x Cube 3h", "PB_DefaultBrick", (80, 320, 80)),
+            ("16x Cube 4h", "PB_DefaultBrick", (160, 160, 80)),
+            ("16x Cube 1v", "PB_DefaultMicroBrick", (80, 80, 160)),
+            ("16x Cube 2v", "PB_DefaultMicroBrick", (80, 80, 240)),
+            ("16x Cube 3v", "PB_DefaultMicroBrick", (80, 80, 320)),
+            ("16x Cube 4v", "PB_DefaultMicroBrick", (80, 160, 160)),
+            ("32x Cube 1h", "PB_DefaultBrick", (160, 320, 160)),
+            ("32x Cube 4h", "PB_DefaultBrick", (320, 320, 160)),
+            ("32x Cube 1v", "PB_DefaultMicroBrick", (160, 160, 320)),
+            ("32x Cube 4v", "PB_DefaultMicroBrick", (160, 320, 320)),
+        ];
+
+        for (name, asset, size) in cases {
+            assert_single_brick_mapping(name, asset, size);
+        }
+    }
+
+    #[test]
+    fn maps_other_optimized_cubes() {
+        let cases = [
+            ("8x Cube Print", "PB_DefaultMicroBrick", (40, 40, 40)),
+            ("32x Cube 1/16h", "PB_DefaultMicroBrick", (160, 160, 10)),
+            ("4x Cube Print", "PB_DefaultMicroBrick", (20, 20, 20)),
+            ("2x Cube 4x H", "PB_DefaultMicroBrick", (10, 40, 10)),
+        ];
+
+        for (name, asset, size) in cases {
+            assert_single_brick_mapping(name, asset, size);
+        }
+    }
+
+    #[test]
+    fn maps_cube_walls_as_one_stud_thick_vertical_panels() {
+        assert_single_brick_mapping("4x Cube Wall", "PB_DefaultMicroBrick", (5, 20, 20));
+        assert_single_brick_mapping("8x Cube Wall", "PB_DefaultMicroBrick", (5, 40, 40));
+    }
+
+    #[test]
+    fn leaves_zone_cubes_unmapped() {
+        for name in [
+            "8x8 Zone Cube",
+            "16x16 Zone Cube",
+            "32x32 Zone Cube",
+            "64x64 Zone Cube",
+        ] {
+            assert!(!BRICK_MAP_LITERAL.contains_key(name));
+        }
+    }
+
+    #[test]
+    fn maps_trench_warfare_cube_dirt_brown() {
+        assert_single_brick_mapping("2x Cube Dirt", "PB_DefaultBrick", (10, 10, 10));
+        assert_single_brick_mapping("4x Cube Dirt", "PB_DefaultBrick", (20, 20, 20));
+        assert_single_brick_mapping("8x Cube Dirt", "PB_DefaultBrick", (40, 40, 40));
+        assert_single_brick_mapping("16x Cube Dirt", "PB_DefaultBrick", (80, 80, 80));
+        assert_single_brick_mapping("32x Cube Dirt", "PB_DefaultBrick", (160, 160, 160));
+
+        for name in [
+            "2x Cube Dirt",
+            "4x Cube Dirt",
+            "8x Cube Dirt",
+            "16x Cube Dirt",
+            "32x Cube Dirt",
+        ] {
+            assert_eq!(
+                BRICK_MAP_LITERAL.get(name).unwrap()[0].color_override,
+                Some(DIRT_COLOR)
+            );
+        }
+    }
+
+    #[test]
+    fn maps_farming_dirt_one_brick_high_and_brown() {
+        assert_single_brick_mapping("4x4 Dirt", "PB_DefaultBrick", (20, 20, 6));
+        assert_single_brick_mapping("8x8 Dirt", "PB_DefaultBrick", (40, 40, 6));
+
+        for name in ["4x4 Dirt", "8x8 Dirt"] {
+            assert_eq!(
+                BRICK_MAP_LITERAL.get(name).unwrap()[0].color_override,
+                Some(DIRT_COLOR)
+            );
+        }
+    }
+
+    #[test]
+    fn maps_print_plates_as_smooth_stud_sized_plates() {
+        assert_single_brick_mapping("1x2F Print Plate", "PB_DefaultSmoothTile", (5, 10, 2));
+        assert_single_brick_mapping("2x2F Print Plate", "PB_DefaultSmoothTile", (10, 10, 2));
+    }
+
+    #[test]
+    fn maps_ceiling_and_bottom_print_plates_as_microbricks() {
+        assert_single_brick_mapping(
+            "4x4F Ceiling Print Plate",
+            "PB_DefaultMicroBrick",
+            (20, 20, 2),
+        );
+        assert_single_brick_mapping("Bottom Print 1x1F", "PB_DefaultMicroBrick", (5, 5, 2));
+        assert_single_brick_mapping("Bottom Print 2x2F", "PB_DefaultMicroBrick", (10, 10, 2));
+    }
+
+    #[test]
+    fn maps_four_sided_print_as_a_regular_1x1_brick() {
+        assert_single_brick_mapping("4-Sided Print 1x1", "PB_DefaultBrick", (5, 5, 6));
     }
 }

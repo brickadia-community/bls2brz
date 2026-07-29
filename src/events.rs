@@ -50,7 +50,9 @@ pub fn centerprint_message(event: &Event) -> Option<String> {
 fn to_brickadia_markup(text: &str) -> String {
     let converted = OPEN_TAG.replace_all(text, "<color=\"$1\">");
     let converted = FONT_TAG.replace_all(&converted, "<size=\"$1\">");
-    let converted = converted.replace("</color>", "</>").replace("</font>", "</>");
+    let converted = converted
+        .replace("</color>", "</>")
+        .replace("</font>", "</>");
     format!("<color=\"{DEFAULT_COLOR}\">{converted}</>")
 }
 
@@ -59,7 +61,10 @@ fn to_brickadia_markup(text: &str) -> String {
 /// click-to-print behavior; the writer fills the rest from defaults.
 pub fn interact_component(message: &str) -> LiteralComponent {
     LiteralComponent::new("Component_Interact").with_data([
-        ("Message", Box::new(message.to_string()) as Box<dyn AsBrdbValue>),
+        (
+            "Message",
+            Box::new(message.to_string()) as Box<dyn AsBrdbValue>,
+        ),
         ("bAllowNearbyInteraction", Box::new(false)),
     ])
 }
@@ -88,7 +93,10 @@ mod tests {
     fn color_tags_converted() {
         let msg = centerprint_message(&ev(
             "CenterPrint",
-            &["<color:00ff00>test</color><color:0000ff>colors</color>", "3"],
+            &[
+                "<color:00ff00>test</color><color:0000ff>colors</color>",
+                "3",
+            ],
         ))
         .unwrap();
         assert_eq!(
@@ -99,11 +107,8 @@ mod tests {
 
     #[test]
     fn font_tag_becomes_size() {
-        let msg = centerprint_message(&ev(
-            "CenterPrint",
-            &["<font:Impact:16>big</font>", "3"],
-        ))
-        .unwrap();
+        let msg =
+            centerprint_message(&ev("CenterPrint", &["<font:Impact:16>big</font>", "3"])).unwrap();
         assert_eq!(msg, r#"<color="ff0000"><size="16">big</></>"#);
     }
 

@@ -17,11 +17,10 @@ pub fn spawn_point_component() -> LiteralComponent {
 
 /// Make this brick a Brickadia checkpoint with the normal gravity alignment.
 pub fn checkpoint_component() -> LiteralComponent {
-    LiteralComponent::new("Component_CheckPoint")
-        .with_data([(
-            "bRotatePlayerGravityOnSpawn",
-            Box::new(true) as Box<dyn AsBrdbValue>,
-        )])
+    LiteralComponent::new("Component_CheckPoint").with_data([(
+        "bRotatePlayerGravityOnSpawn",
+        Box::new(true) as Box<dyn AsBrdbValue>,
+    )])
 }
 
 #[cfg(test)]
@@ -30,7 +29,13 @@ mod tests {
 
     #[test]
     fn emits_native_marker_component_types() {
-        assert_eq!(spawn_point_component().component_name.as_ref(), "Component_SpawnPoint");
-        assert_eq!(checkpoint_component().component_name.as_ref(), "Component_CheckPoint");
+        assert_eq!(
+            spawn_point_component().component_name.as_ref(),
+            "Component_SpawnPoint"
+        );
+        assert_eq!(
+            checkpoint_component().component_name.as_ref(),
+            "Component_CheckPoint"
+        );
     }
 }

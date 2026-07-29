@@ -16,6 +16,7 @@
 use brdb::assets::LiteralComponent;
 use brdb::schema::{BrdbInterned, BrdbSchema, BrdbValue};
 use brdb::{AsBrdbValue, BrdbSchemaError, SavedBrickColor, Vector3f};
+use std::borrow::Cow;
 
 /// The font descriptor the decals reference. Brickadia resolves this by name
 /// through the world's external asset reference table (populated in `lib.rs`).
@@ -48,14 +49,22 @@ const ANCHOR_CENTER: f32 = 0.5;
 /// If `print` is a stock letter print, return the glyph to show.
 ///
 /// Plain glyph prints (`Letters/A`, `Letters/7`) yield that character directly.
+/// Lowercase letter prints (`Letters/Alcase`, `Letters/Llcase`) yield the
+/// lowercase form of their leading letter.
 /// Named symbol prints (`Letters/-less_than`) map to their punctuation glyph.
 /// Prints with no printable glyph — `Letters/-space`, image icons
 /// (`Letters/icon_*`), and any unrecognized symbol name — produce no decal.
-pub fn letter_from_print(print: &str) -> Option<&str> {
+pub fn letter_from_print(print: &str) -> Option<Cow<'_, str>> {
     let name = print.strip_prefix("Letters/")?;
 
     if let Some(symbol) = name.strip_prefix('-') {
-        return symbol_glyph(symbol);
+        return symbol_glyph(symbol).map(Cow::Borrowed);
+    }
+
+    if let Some(letter) = name.strip_suffix("lcase") {
+        if letter.len() == 1 && letter.is_ascii() && letter.as_bytes()[0].is_ascii_alphabetic() {
+            return Some(Cow::Owned(letter.to_ascii_lowercase()));
+        }
     }
 
     // `icon_*` prints are pictographs (weapons, etc.), not letters.
@@ -63,7 +72,7 @@ pub fn letter_from_print(print: &str) -> Option<&str> {
         return None;
     }
 
-    Some(name)
+    Some(Cow::Borrowed(name))
 }
 
 /// Map a Blockland named-symbol print (the part after `Letters/-`) to its glyph.
@@ -108,14 +117,17 @@ fn symbol_glyph(symbol: &str) -> Option<&'static str> {
 /// a special spot (wedges, rounds, poles, corners, vertical-edge plates, ...).
 /// The generic [`print_placement`] rule can't place these, so they get no decal.
 const IRREGULAR_MARKERS: &[&str] = &[
-    "wedge", "round", "pole", "corner", "edge", "shaped", "barrel", "panel",
-    "thirds", "half", "bottom", "sided", "vertical",
+    "wedge", "round", "pole", "corner", "edge", "shaped", "barrel", "panel", "thirds", "half",
+    "bottom", "sided", "vertical",
 ];
 
 /// Whether a print brick has a plain rectangular print face the generic
 /// placement rule handles. Irregular shapes return `false` and are skipped.
 pub fn is_regular_print_brick(brick_name: &str) -> bool {
     let name = brick_name.to_ascii_lowercase();
+    if matches!(name.as_str(), "bottom print 1x1f" | "bottom print 2x2f") {
+        return true;
+    }
     !IRREGULAR_MARKERS.iter().any(|m| name.contains(m))
 }
 
@@ -211,17 +223,38 @@ pub fn text_decal_component(
 /// Its values mirror the decal configured in Brickadia: black, unlit, no
 /// outline, and positioned 35 cm toward the local Y edge.
 pub fn vehicle_spawn_decal_component(enabled: bool, font_asset_index: usize) -> LiteralComponent {
-    marker_decal_component(enabled, font_asset_index, SavedBrickColor::rgb(0, 0, 0), 115.0, 35.0)
+    marker_decal_component(
+        enabled,
+        font_asset_index,
+        SavedBrickColor::rgb(0, 0, 0),
+        115.0,
+        35.0,
+        -90.0,
+    )
 }
 
 /// Build the spawn-point marker shown on the top of its converted 3x3 tile.
 pub fn spawn_point_decal_component(enabled: bool, font_asset_index: usize) -> LiteralComponent {
-    marker_decal_component(enabled, font_asset_index, SavedBrickColor::rgb(0, 0, 0), 30.0, 10.0)
+    marker_decal_component(
+        enabled,
+        font_asset_index,
+        SavedBrickColor::rgb(0, 0, 0),
+        30.0,
+        10.0,
+        0.0,
+    )
 }
 
 /// Build the checkpoint marker shown on the top of its converted 3x3 tile.
 pub fn checkpoint_decal_component(enabled: bool, font_asset_index: usize) -> LiteralComponent {
-    marker_decal_component(enabled, font_asset_index, SavedBrickColor::rgb(255, 255, 255), 30.0, 10.0)
+    marker_decal_component(
+        enabled,
+        font_asset_index,
+        SavedBrickColor::rgb(255, 255, 255),
+        30.0,
+        10.0,
+        0.0,
+    )
 }
 
 /// Build a marker glyph with the shared unlit, outline-free settings.
@@ -231,6 +264,7 @@ fn marker_decal_component(
     color: SavedBrickColor,
     line_height: f32,
     offset_y: f32,
+    rotation: f32,
 ) -> LiteralComponent {
     LiteralComponent::new("Component_TextDisplay").with_data([
         ("Text", Box::new("𝅉".to_string()) as Box<dyn AsBrdbValue>),
@@ -240,7 +274,7 @@ fn marker_decal_component(
         ("Color", Box::new(color)),
         ("bOverrideColor", Box::new(true)),
         ("Face", Box::new(FACE_Z_POSITIVE)),
-        ("Rotation", Box::new(-90.0f32)),
+        ("Rotation", Box::new(rotation)),
         ("bAlignToWedge", Box::new(false)),
         ("LineHeight", Box::new(line_height)),
         (
@@ -290,12 +324,43 @@ impl AsBrdbValue for Vec2f {
 }
 
 #[cfg(test)]
+mod glyph_tests {
+    use super::letter_from_print;
+
+    fn glyph(print: &str) -> Option<String> {
+        letter_from_print(print).map(|glyph| glyph.into_owned())
+    }
+
+    #[test]
+    fn resolves_lcase_print_names_to_lowercase_letters() {
+        assert_eq!(glyph("Letters/Llcase").as_deref(), Some("l"));
+        assert_eq!(glyph("Letters/Elcase").as_deref(), Some("e"));
+        assert_eq!(glyph("Letters/Alcase").as_deref(), Some("a"));
+    }
+
+    #[test]
+    fn preserves_regular_letters_and_named_symbols() {
+        assert_eq!(glyph("Letters/L").as_deref(), Some("L"));
+        assert_eq!(glyph("Letters/-less_than").as_deref(), Some("<"));
+    }
+}
+
+#[cfg(test)]
 mod placement_tests {
     use super::*;
 
     fn p(size: (u32, u32, u32), ceiling: bool) -> (f32, u8) {
         let pl = print_placement(size, ceiling);
         (pl.size, pl.face)
+    }
+
+    fn marker_rotation(component: LiteralComponent) -> f32 {
+        component
+            .data
+            .get("Rotation")
+            .unwrap()
+            .as_brdb_f32()
+            .unwrap()
     }
 
     #[test]
@@ -307,6 +372,16 @@ mod placement_tests {
         assert_eq!(p((5, 5, 2), true), (8.0, FACE_Z_NEGATIVE)); // ceiling flat
         assert_eq!(p((0, 0, 0), false), (8.0, FACE_X_NEGATIVE)); // fallback
     }
+
+    #[test]
+    fn spawn_markers_compensate_for_their_clockwise_brick_rotation() {
+        assert_eq!(
+            marker_rotation(vehicle_spawn_decal_component(true, 0)),
+            -90.0
+        );
+        assert_eq!(marker_rotation(spawn_point_decal_component(true, 0)), 0.0);
+        assert_eq!(marker_rotation(checkpoint_decal_component(true, 0)), 0.0);
+    }
 }
 
 #[cfg(test)]
@@ -315,10 +390,34 @@ mod regular_tests {
 
     #[test]
     fn skips_irregular_keeps_boxes() {
-        for n in ["1x1 Print","1x4x4 Print","1x1F Print","2x2F Print","4x4f_PrintPlate","2x2x1 Print","2x Cube Print","2x2F Ceiling Print Plate"] {
+        for n in [
+            "1x1 Print",
+            "1x4x4 Print",
+            "1x1F Print",
+            "2x2F Print",
+            "4x4f_PrintPlate",
+            "2x2x1 Print",
+            "2x Cube Print",
+            "2x2F Ceiling Print Plate",
+            "Bottom Print 1x1F",
+            "Bottom Print 2x2F",
+        ] {
             assert!(reg(n), "should keep {n}");
         }
-        for n in ["1x1 Wedge Print","2x2F Round Print","1x1 Thick Pole Print","1F 1x1F Vertical Corner Print","1x1F Vertical Edge Print","2x2x9 Barrel Print","2x2F L-Shaped Print","4-Sided Print 1x1","Bottom Print 2x2F","1x1f Thirds 1 Print","1F 1x2F Half-Plate Print","4h Panel 4x Print Inside","1F 2x2F Vertical Print"] {
+        for n in [
+            "1x1 Wedge Print",
+            "2x2F Round Print",
+            "1x1 Thick Pole Print",
+            "1F 1x1F Vertical Corner Print",
+            "1x1F Vertical Edge Print",
+            "2x2x9 Barrel Print",
+            "2x2F L-Shaped Print",
+            "4-Sided Print 1x1",
+            "1x1f Thirds 1 Print",
+            "1F 1x2F Half-Plate Print",
+            "4h Panel 4x Print Inside",
+            "1F 2x2F Vertical Print",
+        ] {
             assert!(!reg(n), "should skip {n}");
         }
     }

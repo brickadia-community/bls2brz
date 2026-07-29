@@ -15,10 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Basic brick assets: {:?}", data.basic_brick_asset_names);
     println!("Procedural assets: {:?}", data.procedural_brick_asset_names);
     println!("Component types: {:?}", data.component_type_names);
-    println!(
-        "Component structs: {:?}",
-        data.component_data_struct_names
-    );
+    println!("Component structs: {:?}", data.component_data_struct_names);
     println!("Wire port names: {:?}", data.component_wire_port_names);
     println!("Entity types: {:?}", data.entity_type_names);
 
@@ -73,7 +70,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             if chunk.num_components > 0 {
                 let (csoa, structs) = db.component_chunk_soa(gid, chunk.index)?;
-                println!("  component brick indices: {:?}", csoa.component_brick_indices);
+                println!(
+                    "  component brick indices: {:?}",
+                    csoa.component_brick_indices
+                );
                 let runs: Vec<(String, u32)> = csoa
                     .component_type_counters
                     .iter()

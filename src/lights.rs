@@ -120,10 +120,7 @@ fn color_of(name: &str) -> Option<(u8, u8, u8)> {
 /// database; only the values that differ from those defaults are set here.
 pub fn point_light_component(spec: &LightSpec) -> LiteralComponent {
     LiteralComponent::new("Component_PointLight").with_data([
-        (
-            "bMatchBrickShape",
-            Box::new(false) as Box<dyn AsBrdbValue>,
-        ),
+        ("bMatchBrickShape", Box::new(false) as Box<dyn AsBrdbValue>),
         ("bEnabled", Box::new(true)),
         ("Brightness", Box::new(spec.brightness)),
         ("Radius", Box::new(spec.radius_studs * CM_PER_STUD)),
@@ -142,10 +139,32 @@ mod tests {
 
     #[test]
     fn skips_specials_maps_regulars() {
-        for n in ["RGB","Alarm","Strobe","Yellow Blink","Eksi (IMG) - Diag yellow","Eksi (AMB) 1/2 - Neutral star"] {
+        for n in [
+            "RGB",
+            "Alarm",
+            "Strobe",
+            "Yellow Blink",
+            "Eksi (IMG) - Diag yellow",
+            "Eksi (AMB) 1/2 - Neutral star",
+        ] {
             assert!(map_light(n).is_none(), "should skip {n}");
         }
-        for n in ["Candle Light","Candlelight Warm","Player's Light","Players Light Dimmer","Bright","Bulb Light","Bulb Light Dimmer","Orange Light","Orange Warm","Orange Amb. Dim","White Ambient","Cyan Ambient Dimmer","Green Amb.","Red Warm"] {
+        for n in [
+            "Candle Light",
+            "Candlelight Warm",
+            "Player's Light",
+            "Players Light Dimmer",
+            "Bright",
+            "Bulb Light",
+            "Bulb Light Dimmer",
+            "Orange Light",
+            "Orange Warm",
+            "Orange Amb. Dim",
+            "White Ambient",
+            "Cyan Ambient Dimmer",
+            "Green Amb.",
+            "Red Warm",
+        ] {
             assert!(map_light(n).is_some(), "should map {n}");
         }
     }

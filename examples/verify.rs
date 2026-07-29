@@ -22,8 +22,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let max_intensity = soa.colors_and_alphas.iter().map(|c| c.a).max().unwrap_or(0);
     let min_intensity = soa.colors_and_alphas.iter().map(|c| c.a).min().unwrap_or(0);
     println!("material_intensity (alpha byte) range: {min_intensity}..={max_intensity}");
-    for (p, c) in soa.relative_positions.iter().zip(&soa.colors_and_alphas).take(3) {
-        println!("  pos=({},{},{}) rgba({},{},{},{})", p.x, p.y, p.z, c.r, c.g, c.b, c.a);
+    for (p, c) in soa
+        .relative_positions
+        .iter()
+        .zip(&soa.colors_and_alphas)
+        .take(3)
+    {
+        println!(
+            "  pos=({},{},{}) rgba({},{},{},{})",
+            p.x, p.y, p.z, c.r, c.g, c.b, c.a
+        );
     }
     Ok(())
 }
