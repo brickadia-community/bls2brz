@@ -858,9 +858,10 @@ lazy_static! {
         // Brick_WedgePlus
         "1x1 Wedge" => BrickDesc::new("PB_DefaultSideWedge").size((5, 5, 6)).rotation_offset(0),
         "1x1 Wedge Print" => BrickDesc::new("PB_DefaultSideWedge").size((5, 5, 6)).rotation_offset(0),
-        "1x2 Wedge Left" => BrickDesc::new("PB_DefaultSideWedge").size((10, 5, 6)).rotation_offset(1),
-        "2x2 Wedge Print" => BrickDesc::new("PB_DefaultSideWedge").size((10, 10, 6)).rotation_offset(0),
-        "4x4 Wedge Print" => BrickDesc::new("PB_DefaultSideWedge").size((20, 20, 6)).rotation_offset(0),
+        "1x2 Wedge Left" => BrickDesc::new("PB_DefaultSideWedge").size((10, 5, 2)).rotation_offset(1),
+        "1x2 Wedge Right" => BrickDesc::new("PB_DefaultSideWedge").size((5, 10, 2)).rotation_offset(0),
+        "2x2 Wedge Print" => BrickDesc::new("PB_DefaultSideWedge").size((10, 10, 12)).rotation_offset(0),
+        "4x4 Wedge Print" => BrickDesc::new("PB_DefaultSideWedge").size((20, 20, 24)).rotation_offset(0),
         "1x1F Wedge" => BrickDesc::new("PB_DefaultSideWedge").size((5, 5, 2)).rotation_offset(0),
         "1x1x5 Wedge" => BrickDesc::new("PB_DefaultSideWedge").size((5, 5, 30)).rotation_offset(0),
         "4x4 Tapered Wedge" => BrickDesc::new("PB_DefaultSideWedge").size((20, 20, 6)).rotation_offset(0),
@@ -1217,8 +1218,8 @@ lazy_static! {
         "16x Cube 1/8h" => BrickDesc::new("PB_DefaultMicroBrick").size((80, 80, 10)),
         "16x Cube Fixed" => BrickDesc::new("PB_DefaultBrick").size((80, 80, 80)),
         " 4x Cube Fix" => BrickDesc::new("PB_DefaultBrick").size((20, 20, 20)),
-        "4x Cube Wall" => BrickDesc::new("PB_DefaultMicroBrick").size((5, 20, 20)),
-        "8x Cube Wall" => BrickDesc::new("PB_DefaultMicroBrick").size((5, 40, 40)),
+        "4x Cube Wall" => BrickDesc::new("PB_DefaultMicroBrick").size((10, 20, 20)),
+        "8x Cube Wall" => BrickDesc::new("PB_DefaultMicroBrick").size((10, 40, 40)),
         // Cube Prints
         "2x Cube Print" => BrickDesc::new("PB_DefaultMicroBrick").size((10, 10, 10)),
         "4x Cube Print" => BrickDesc::new("PB_DefaultMicroBrick").size((20, 20, 20)),
@@ -1556,6 +1557,40 @@ lazy_static! {
     ];
 
     pub static ref BRICK_MAP_REGEX: Vec<(Regex, RegexHandler)> = brick_map_regex![
+        //==================================================================================
+        // Brick_BaseplatePack
+        //
+        // These names omit the usual F/Base suffix, but their BLBs are one plate tall.
+        // Keep the explicit size list narrow because common square names can belong to
+        // unrelated brick packs with conflicting geometry.
+        //==================================================================================
+        r"^(?:18x18|20x20|22x22|26x26|28x28|30x30|34x34|36x36|38x38|40x40|42x42|46x46|50x50|52x52|54x54|56x56|58x58|60x60|62x62|66x66)$" => |captures, _| {
+            let (width, length) = captures.get(0).unwrap().as_str().split_once('x')?;
+            let width: u32 = width.parse().ok()?;
+            let length: u32 = length.parse().ok()?;
+
+            Some(vec![BrickDesc::new("PB_DefaultBrick")
+                .size((width * 5, length * 5, 2))
+                .rotation_offset(1)])
+        },
+
+        //==================================================================================
+        // Brick_Baseplates
+        //
+        // This pack's x2/x4 suffix measures height in five-unit increments rather than
+        // the six-unit brick-height convention used by the generic dimensional mapper.
+        //==================================================================================
+        r"^(8x8|8x16|16x16|16x32|32x32|32x64|64x64)x([24]) Brick$" => |captures, _| {
+            let (width, length) = captures.get(1).unwrap().as_str().split_once('x')?;
+            let width: u32 = width.parse().ok()?;
+            let length: u32 = length.parse().ok()?;
+            let height: u32 = captures.get(2).unwrap().as_str().parse().ok()?;
+
+            Some(vec![BrickDesc::new("PB_DefaultBrick")
+                .size((width * 5, length * 5, height * 5))
+                .rotation_offset(1)])
+        },
+
         // TODO: Consider trying to handle fractional sizes that sometimes occur
         // TODO: Remove (?: Print)? when prints exist
         r"^(\d+)x(\d+)(?:x(\d+)|([Ff])|([Hh]))?( Print)?( Ceiling)?(?: Brick)?$" => |captures, from| {
@@ -2063,9 +2098,69 @@ mod tests {
     }
 
     #[test]
-    fn maps_cube_walls_as_one_stud_thick_vertical_panels() {
-        assert_single_brick_mapping("4x Cube Wall", "PB_DefaultMicroBrick", (5, 20, 20));
-        assert_single_brick_mapping("8x Cube Wall", "PB_DefaultMicroBrick", (5, 40, 40));
+    fn maps_cube_walls_from_their_two_stud_thick_blbs() {
+        assert_single_brick_mapping("4x Cube Wall", "PB_DefaultMicroBrick", (10, 20, 20));
+        assert_single_brick_mapping("8x Cube Wall", "PB_DefaultMicroBrick", (10, 40, 40));
+    }
+
+    #[test]
+    fn maps_side_wedges_from_their_blb_dimensions() {
+        let cases = [
+            ("1x2 Wedge Left", (10, 5, 2), 1),
+            ("1x2 Wedge Right", (5, 10, 2), 0),
+            ("2x2 Wedge Print", (10, 10, 12), 0),
+            ("4x4 Wedge Print", (20, 20, 24), 0),
+        ];
+
+        for (name, size, rotation_offset) in cases {
+            let mapping = BRICK_MAP_LITERAL.get(name).unwrap();
+            assert_eq!(mapping.len(), 1, "{name}");
+            assert_eq!(mapping[0].asset, "PB_DefaultSideWedge", "{name}");
+            assert_eq!(mapping[0].size, size, "{name}");
+            assert_eq!(mapping[0].rotation_offset, rotation_offset, "{name}");
+        }
+    }
+
+    fn assert_mapped_size(name: &str, expected_size: (u32, u32, u32)) {
+        let mapping = crate::map_brick(&bls::Brick::new(name)).unwrap();
+        assert_eq!(mapping.len(), 1, "{name}");
+        assert_eq!(mapping[0].asset, "PB_DefaultBrick", "{name}");
+        assert_eq!(mapping[0].size, expected_size, "{name}");
+    }
+
+    #[test]
+    fn maps_baseplate_pack_as_one_plate_thick() {
+        for size in [
+            18, 20, 22, 26, 28, 30, 34, 36, 38, 40, 42, 46, 50, 52, 54, 56, 58, 60, 62, 66,
+        ] {
+            assert_mapped_size(&format!("{size}x{size}"), (size * 5, size * 5, 2));
+        }
+
+        // These square names have conflicting non-baseplate definitions in other addons.
+        assert_mapped_size("16x16", (80, 80, 6));
+        assert_mapped_size("24x24", (120, 120, 6));
+    }
+
+    #[test]
+    fn maps_baseplates_pack_with_five_unit_height_steps() {
+        for (width, length) in [
+            (8, 8),
+            (8, 16),
+            (16, 16),
+            (16, 32),
+            (32, 32),
+            (32, 64),
+            (64, 64),
+        ] {
+            for height in [2, 4] {
+                assert_mapped_size(
+                    &format!("{width}x{length}x{height} Brick"),
+                    (width * 5, length * 5, height * 5),
+                );
+            }
+        }
+
+        assert_mapped_size("10x10x2 Brick", (50, 50, 12));
     }
 
     #[test]
