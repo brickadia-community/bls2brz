@@ -27,6 +27,9 @@ use lazy_static::lazy_static;
 /// panel and handles.
 pub static PLAIN_DOOR_BRZ: &[u8] = include_bytes!("../prefabs/plain_door.brz");
 pub static JAIL_DOOR_BRZ: &[u8] = include_bytes!("../prefabs/jail_door.brz");
+/// The `lattice.brz` prefab: the micro-brick lattice tower that replaces the
+/// hand-coded `2x2x5 Lattice` mapping.
+pub static LATTICE_BRZ: &[u8] = include_bytes!("../prefabs/lattice.brz");
 
 lazy_static! {
     static ref PLAIN_DOOR: PrefabTemplate = {
@@ -44,11 +47,20 @@ lazy_static! {
     };
 }
 
+lazy_static! {
+    static ref LATTICE: PrefabTemplate = {
+        let mut t = PrefabTemplate::parse(LATTICE_BRZ).expect("parse embedded lattice.brz");
+        t.angle_offset = 0;
+        t
+    };
+}
+
 /// Return the prefab template mapped to a Blockland `uiName`, if any.
 pub fn template_for(ui_name: &str) -> Option<&'static PrefabTemplate> {
     match ui_name {
         "Plain Door" | "House Door" => Some(&PLAIN_DOOR),
         "Jail Door" => Some(&JAIL_DOOR),
+        "2x2x5 Lattice" => Some(&LATTICE),
         _ => None,
     }
 }
@@ -57,9 +69,45 @@ pub fn template_for(ui_name: &str) -> Option<&'static PrefabTemplate> {
 /// by name so they can be re-registered (and re-indexed) in the target world.
 enum TemplateValue {
     Value(BrdbValue),
+    /// A nested struct field (e.g. a `Vector3f` offset), flattened to
+    /// name-keyed fields. A [`BrdbValue::Struct`] cannot be reused directly:
+    /// its properties are keyed by interned ids from the *prefab's* schema, and
+    /// lookups from the output world's schema use different ids, so every
+    /// nested field would read as missing and serialize as its default.
+    Struct(Vec<(String, TemplateValue)>),
     /// External asset reference: `(asset_type, asset_name)`; `None` is a null
     /// reference.
     Asset(Option<(String, String)>),
+}
+
+/// Capture a component field value, recursing into nested structs so no value
+/// stays bound to the prefab's intern table.
+fn capture_value(
+    value: &BrdbValue,
+    schema: &brdb::schema::BrdbSchema,
+    external_assets: &[(String, String)],
+) -> TemplateValue {
+    match value {
+        BrdbValue::Asset(idx) => {
+            TemplateValue::Asset(idx.and_then(|i| external_assets.get(i).cloned()))
+        }
+        BrdbValue::Struct(s) => {
+            let fields = schema
+                .get_struct(s.get_name())
+                .map(|def| {
+                    def.keys()
+                        .filter_map(|prop_id| prop_id.get(schema))
+                        .filter_map(|prop| {
+                            let v = s.get(prop)?;
+                            Some((prop.to_string(), capture_value(v, schema, external_assets)))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            TemplateValue::Struct(fields)
+        }
+        v => TemplateValue::Value(v.clone()),
+    }
 }
 
 struct TemplateComponent {
@@ -229,13 +277,10 @@ impl PrefabTemplate {
                                         continue;
                                     };
                                     let Some(value) = s.get(prop) else { continue };
-                                    let value = match value {
-                                        BrdbValue::Asset(idx) => TemplateValue::Asset(
-                                            idx.and_then(|i| external_assets.get(i).cloned()),
-                                        ),
-                                        v => TemplateValue::Value(v.clone()),
-                                    };
-                                    fields.push((prop.to_string(), value));
+                                    fields.push((
+                                        prop.to_string(),
+                                        capture_value(value, &components_schema, &external_assets),
+                                    ));
                                 }
                             }
                             chunk_bricks
@@ -402,17 +447,7 @@ impl PrefabTemplate {
         {
             for component in &brick.components {
                 for (_, value) in &component.fields {
-                    if let TemplateValue::Asset(Some(asset)) = value {
-                        let (index, _) = world
-                            .global_data
-                            .external_asset_references
-                            .insert_full(asset.clone());
-                        world
-                            .global_data
-                            .external_asset_types
-                            .insert(asset.0.clone());
-                        asset_indices.insert(asset.clone(), index);
-                    }
+                    register_assets(value, world, &mut asset_indices);
                 }
             }
         }
@@ -572,20 +607,59 @@ fn build_brick(
 
 impl TemplateComponent {
     fn to_literal(&self, asset_indices: &HashMap<(String, String), usize>) -> LiteralComponent {
-        LiteralComponent::new(self.type_name.clone()).with_data(self.fields.iter().map(
-            |(name, value)| {
-                let value: Box<dyn AsBrdbValue> = match value {
-                    TemplateValue::Value(v) => Box::new(v.clone()),
-                    TemplateValue::Asset(asset) => Box::new(BrdbValue::Asset(
-                        asset
-                            .as_ref()
-                            .and_then(|asset| asset_indices.get(asset).copied()),
-                    )),
-                };
-                (name.clone(), value)
-            },
-        ))
+        literal_from_fields(&self.type_name, &self.fields, asset_indices)
     }
+}
+
+/// Register every asset reference reachable from a captured field value.
+fn register_assets(
+    value: &TemplateValue,
+    world: &mut World,
+    asset_indices: &mut HashMap<(String, String), usize>,
+) {
+    match value {
+        TemplateValue::Asset(Some(asset)) => {
+            let (index, _) = world
+                .global_data
+                .external_asset_references
+                .insert_full(asset.clone());
+            world
+                .global_data
+                .external_asset_types
+                .insert(asset.0.clone());
+            asset_indices.insert(asset.clone(), index);
+        }
+        TemplateValue::Struct(fields) => {
+            for (_, value) in fields {
+                register_assets(value, world, asset_indices);
+            }
+        }
+        TemplateValue::Asset(None) | TemplateValue::Value(_) => {}
+    }
+}
+
+/// Build a name-keyed struct value. [`LiteralComponent`] resolves properties by
+/// name against whatever schema is writing it, which is exactly what a nested
+/// struct needs; the name is only used in error messages.
+fn literal_from_fields(
+    name: &str,
+    fields: &[(String, TemplateValue)],
+    asset_indices: &HashMap<(String, String), usize>,
+) -> LiteralComponent {
+    LiteralComponent::new(name.to_string()).with_data(fields.iter().map(|(name, value)| {
+        let value: Box<dyn AsBrdbValue> = match value {
+            TemplateValue::Value(v) => Box::new(v.clone()),
+            TemplateValue::Struct(fields) => {
+                Box::new(literal_from_fields(name, fields, asset_indices))
+            }
+            TemplateValue::Asset(asset) => Box::new(BrdbValue::Asset(
+                asset
+                    .as_ref()
+                    .and_then(|asset| asset_indices.get(asset).copied()),
+            )),
+        };
+        (name.clone(), value)
+    }))
 }
 
 /// Rotate a template-relative position `k` 90° steps about Z, matching the

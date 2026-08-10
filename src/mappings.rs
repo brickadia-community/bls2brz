@@ -90,7 +90,8 @@ lazy_static! {
         "2x2x1 Octo Cone" => BrickDesc::new("B_2x2_Round"),
         "Gravestone" => BrickDesc::new("B_Gravestone"),
         "Pumpkin" => BrickDesc::new("B_Pumpkin").offset((0, 0, -3)),
-        // "House Door" / "Plain Door" are prefab-backed; see src/prefabs.rs.
+        // "House Door" / "Plain Door" / "2x2x5 Lattice" are prefab-backed;
+        // see src/prefabs.rs.
         "1x1 Bamboo" => BrickDesc::new("B_1x1_Round").offset((-10, -10, 0)),
         "4x3 Leaves" => vec![
             BrickDesc::new("PB_DefaultMicroBrick").size((10, 3, 2)),
@@ -179,78 +180,6 @@ lazy_static! {
                 .color_override(Color::from_rgba(100, 100, 100, 180))
                 .material_intensity(2)
                 .nocollide(),
-        ],
-
-        "2x2x5 Lattice" => vec![
-            // Caps
-            BrickDesc::new("PB_DefaultSmoothTile").size((10, 10, 2)).offset((0, 0, -28)),
-            BrickDesc::new("PB_DefaultBrick").size((10, 10, 2)).offset((0, 0, 28)),
-            // Corners
-            BrickDesc::new("PB_DefaultMicroBrick").size((1, 1, 26)).offset((9, 9, 0)),
-            BrickDesc::new("PB_DefaultMicroBrick").size((1, 1, 26)).offset((9, -9, 0)),
-            BrickDesc::new("PB_DefaultMicroBrick").size((1, 1, 26)).offset((-9, 9, 0)),
-            BrickDesc::new("PB_DefaultMicroBrick").size((1, 1, 26)).offset((-9, -9, 0)),
-            // Brace Fillers
-            BrickDesc::new("PB_DefaultMicroBrick").size((1, 1, 1)).offset((6, -9, -25)),
-            BrickDesc::new("PB_DefaultMicroBrick").size((1, 1, 1)).offset((-6, -9, 25)),
-            BrickDesc::new("PB_DefaultMicroBrick").size((1, 1, 1)).offset((9, -6, -25)),
-            BrickDesc::new("PB_DefaultMicroBrick").size((1, 1, 1)).offset((9, 6, 25)),
-            BrickDesc::new("PB_DefaultMicroBrick").size((1, 1, 1)).offset((-6, 9, -25)),
-            BrickDesc::new("PB_DefaultMicroBrick").size((1, 1, 1)).offset((6, 9, 25)),
-            BrickDesc::new("PB_DefaultMicroBrick").size((1, 1, 1)).offset((-9, 6, -25)),
-            BrickDesc::new("PB_DefaultMicroBrick").size((1, 1, 1)).offset((-9, -6, 25)),
-            // Braces
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((6, -9, -20)).microwedge_rotate(true).rotation_offset(0),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((4, -9, -20)).microwedge_rotate(true).rotation_offset(0).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((4, -9, -12)).microwedge_rotate(true).rotation_offset(0),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((2, -9, -12)).microwedge_rotate(true).rotation_offset(0).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((2, -9, -4)).microwedge_rotate(true).rotation_offset(0),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((0, -9, -4)).microwedge_rotate(true).rotation_offset(0).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((0, -9, 4)).microwedge_rotate(true).rotation_offset(0),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-2, -9, 4)).microwedge_rotate(true).rotation_offset(0).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-2, -9, 12)).microwedge_rotate(true).rotation_offset(0),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-4, -9, 12)).microwedge_rotate(true).rotation_offset(0).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-4, -9, 20)).microwedge_rotate(true).rotation_offset(0),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-6, -9, 20)).microwedge_rotate(true).rotation_offset(0).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-6, 9, -20)).microwedge_rotate(true).rotation_offset(2),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-4, 9, -20)).microwedge_rotate(true).rotation_offset(2).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-4, 9, -12)).microwedge_rotate(true).rotation_offset(2),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-2, 9, -12)).microwedge_rotate(true).rotation_offset(2).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-2, 9, -4)).microwedge_rotate(true).rotation_offset(2),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((0, 9, -4)).microwedge_rotate(true).rotation_offset(2).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((0, 9, 4)).microwedge_rotate(true).rotation_offset(2),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((2, 9, 4)).microwedge_rotate(true).rotation_offset(2).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((2, 9, 12)).microwedge_rotate(true).rotation_offset(2),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((4, 9, 12)).microwedge_rotate(true).rotation_offset(2).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((4, 9, 20)).microwedge_rotate(true).rotation_offset(2),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((6, 9, 20)).microwedge_rotate(true).rotation_offset(2).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((9, -6, -20)).microwedge_rotate(true).rotation_offset(3),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((9, -4, -20)).microwedge_rotate(true).rotation_offset(3).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((9, -4, -12)).microwedge_rotate(true).rotation_offset(3),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((9, -2, -12)).microwedge_rotate(true).rotation_offset(3).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((9, -2, -4)).microwedge_rotate(true).rotation_offset(3),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((9, 0, -4)).microwedge_rotate(true).rotation_offset(3).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((9, 0, 4)).microwedge_rotate(true).rotation_offset(3),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((9, 2, 4)).microwedge_rotate(true).rotation_offset(3).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((9, 2, 12)).microwedge_rotate(true).rotation_offset(3),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((9, 4, 12)).microwedge_rotate(true).rotation_offset(3).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((9, 4, 20)).microwedge_rotate(true).rotation_offset(3),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((9, 6, 20)).microwedge_rotate(true).rotation_offset(3).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-9, 6, -20)).microwedge_rotate(true).rotation_offset(1),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-9, 4, -20)).microwedge_rotate(true).rotation_offset(1).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-9, 4, -12)).microwedge_rotate(true).rotation_offset(1),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-9, 2, -12)).microwedge_rotate(true).rotation_offset(1).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-9, 2, -4)).microwedge_rotate(true).rotation_offset(1),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-9, 0, -4)).microwedge_rotate(true).rotation_offset(1).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-9, 0, 4)).microwedge_rotate(true).rotation_offset(1),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-9, -2, 4)).microwedge_rotate(true).rotation_offset(1).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-9, -2, 12)).microwedge_rotate(true).rotation_offset(1),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-9, -4, 12)).microwedge_rotate(true).rotation_offset(1).inverted_wedge_rotate(true).inverted_modter_rotate(true),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-9, -4, 20)).microwedge_rotate(true).rotation_offset(1),
-            BrickDesc::new("PB_DefaultMicroWedge").size((1, 1, 4)).offset((-9, -6, 20)).microwedge_rotate(true).rotation_offset(1).inverted_wedge_rotate(true).inverted_modter_rotate(true),
         ],
 
         "Treasure Chest" => vec![
