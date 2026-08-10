@@ -23,9 +23,10 @@ Not all Blockland bricks are supported, but the converter tries its best to supp
 - Converts basic `CenterPrint` events into clickable Brickadia interactions.
 - Places ModTer terrain in a separate frozen brick grid, preventing it from
   overlapping ordinary converted bricks.
-- Converts Blockland water bricks into QA Brickadia water zones on the global
-  main grid. A save containing water moves its ordinary bricks to a separate
-  frozen grid so they do not share the zones' overlap domain.
+- Converts Blockland water, river, and rapids bricks into QA Brickadia water
+  zones on the global main grid. A save containing water moves its ordinary
+  bricks to a separate frozen grid so they do not share the zones' overlap
+  domain.
 
 ## Notes
 

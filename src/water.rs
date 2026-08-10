@@ -14,6 +14,9 @@ use brdb::{
 
 /// Blockland's water shape-FX value.
 const SHAPE_FX_WATER: u8 = 2;
+/// Stock water brick name endings. Brickadia has no flow, so the flowing
+/// variants become the same still water zone as `Water`.
+const WATER_BRICK_SUFFIXES: [&str; 3] = [" Water", " River", " Rapids"];
 const UNITS_PER_BLOCKLAND_STUD: u32 = 5;
 const ZONE_HEIGHT: i32 = 72;
 /// Blockland stores the water brick at the center of its 72-unit volume. The
@@ -32,7 +35,9 @@ fn dimensions(from: &bls::Brick) -> Option<(u32, u32)> {
         return None;
     }
 
-    let name = from.name.strip_suffix(" Water")?;
+    let name = WATER_BRICK_SUFFIXES
+        .iter()
+        .find_map(|suffix| from.name.strip_suffix(suffix))?;
     let (width, length): (u32, u32) = if let Some(square) = name.strip_suffix('x') {
         let side: u32 = square.parse().ok()?;
         (side, side)
@@ -279,6 +284,16 @@ mod tests {
     #[test]
     fn water_named_bricks_without_water_shape_fx_are_not_zones() {
         assert!(zone(&water("8x Water", 0), 0).is_none());
+    }
+
+    #[test]
+    fn river_and_rapids_become_the_same_still_zone_as_water() {
+        let still = zone(&water("8x Water", SHAPE_FX_WATER), 0).unwrap();
+        for name in ["8x River", "8x Rapids"] {
+            let flowing = zone(&water(name, SHAPE_FX_WATER), 0).unwrap();
+            assert_eq!(flowing.asset, still.asset, "{name}");
+            assert_eq!(flowing.position, still.position, "{name}");
+        }
     }
 
     #[test]
