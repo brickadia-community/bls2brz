@@ -35,7 +35,7 @@ Order (from `read.rs`):
 | `color_index` | `u8` | Index into the 64-color palette, `0..=63`. |
 | `print` | string | Print/decal name for print bricks; `""` = none. |
 | `color_fx` | `u8` | Color effect. Used for material: `3` = glow, `1`/`2` = metallic-ish (chrome/etc.), else plastic. |
-| `shape_fx` | `u8` | Shape effect (undulo, water, …). Not currently mapped. |
+| `shape_fx` | `u8` | Shape effect (undulo, water, …). Water (`2`) is converted for stock water bricks; other effects are not mapped. |
 | `raycasting` | bool | Can be raycast against. |
 | `collision` | bool | Objects collide with it. |
 | `rendering` | bool | Visible. |

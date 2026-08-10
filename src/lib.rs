@@ -12,6 +12,7 @@ mod mappings;
 mod prefabs;
 mod prints;
 mod spawns;
+mod water;
 
 use brdb::assets::materials::{GLOW, METALLIC, PLASTIC, TRANSLUCENT_PLASTIC};
 use brdb::{
@@ -72,10 +73,12 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
     let mut count_success = 0;
     let mut count_failure = 0;
 
+    let mut regular_bricks = Vec::new();
     let mut non_prio = Vec::new();
     // ModTer terrain must not share the main grid: Brickadia resolves overlaps
     // within a grid, which can make terrain disappear behind ordinary bricks.
     let mut modter_bricks = Vec::new();
+    let mut has_water_zones = false;
 
     for from in &save.bricks {
         let owner_index = from
@@ -84,10 +87,20 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
             .or(sole_owner)
             .unwrap_or(BRICK_OWNER);
 
+        if let Some(zone) = water::zone(from, owner_index) {
+            // QA water must stay on Brickadia's global main grid. Its zone
+            // overlaps are evaluated against this grid rather than a sub-grid.
+            converter.world.bricks.push(zone);
+            has_water_zones = true;
+            count_success += 1;
+            continue;
+        }
+
         // Bricks with a prefab-backed mapping bypass the BrickDesc pipeline:
         // the prefab template stamps its bricks (and any dynamic sub-grids,
         // wires, and joints) straight into the world.
         if let Some(template) = prefabs::template_for(&from.name) {
+            let main_brick_start = converter.world.bricks.len();
             let center = Position {
                 x: (from.position.1 * 20.0) as i32,
                 y: (from.position.0 * 20.0) as i32,
@@ -111,6 +124,7 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
                     owner_index,
                 },
             );
+            regular_bricks.extend(converter.world.bricks.drain(main_brick_start..));
             count_success += 1;
             continue;
         }
@@ -356,12 +370,30 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
             } else if non_priority {
                 non_prio.push(brick);
             } else {
-                converter.world.bricks.push(brick);
+                regular_bricks.push(brick);
             }
         }
     }
 
-    converter.world.bricks.append(&mut non_prio);
+    regular_bricks.append(&mut non_prio);
+
+    // QA water zones only function on the global main grid, and they evaluate
+    // their overlaps against it, so a save containing water moves its ordinary
+    // bricks to an independent overlap domain. Without water there is nothing
+    // to share the main grid with, so leave them on it.
+    if !regular_bricks.is_empty() {
+        if has_water_zones {
+            converter.world.add_brick_grid(
+                Entity {
+                    frozen: true,
+                    ..Default::default()
+                },
+                regular_bricks,
+            );
+        } else {
+            converter.world.bricks.append(&mut regular_bricks);
+        }
+    }
 
     // An entity-backed grid has its own overlap domain. Freezing the grid keeps
     // the converted terrain stationary while retaining its original placement.
@@ -379,6 +411,9 @@ pub fn convert(save: &bls::Save) -> ConvertReport {
     // in the world's component schema and global-data tables. Do this after all
     // bricks (and their components) are in place.
     converter.world.register_used_components();
+    if has_water_zones {
+        water::register_schema(&mut converter.world.component_schema);
+    }
 
     ConvertReport {
         world: converter.world,
@@ -433,6 +468,89 @@ mod grid_tests {
         let (entity, bricks) = &report.world.grids[0];
         assert!(entity.frozen);
         assert_eq!(bricks.len(), 2);
+    }
+
+    fn water_brick() -> bls::Brick {
+        let mut brick = bls::Brick::new("8x Water");
+        brick.shape_fx = 2;
+        brick
+    }
+
+    #[test]
+    fn ordinary_bricks_stay_on_the_main_grid_without_water() {
+        let mut save = bls::Save::new();
+        save.bricks.push(bls::Brick::new("1x1"));
+
+        let report = convert(&save);
+
+        assert_eq!(report.world.bricks.len(), 1);
+        assert!(report.world.grids.is_empty());
+    }
+
+    #[test]
+    fn water_moves_ordinary_bricks_off_the_main_grid() {
+        let mut save = bls::Save::new();
+        save.bricks.push(bls::Brick::new("1x1"));
+        save.bricks.push(water_brick());
+
+        let report = convert(&save);
+
+        // The main grid holds only the zone projector.
+        assert_eq!(report.world.bricks.len(), 1);
+        let BrickType::Procedural { ref asset, .. } = report.world.bricks[0].asset else {
+            panic!("zone is not procedural")
+        };
+        assert_eq!(asset.as_ref(), "BP_ZoneProjector");
+
+        let (entity, bricks) = &report.world.grids[0];
+        assert!(entity.frozen);
+        assert_eq!(bricks.len(), 1);
+
+        // The zone component's schema is registered after the shared component
+        // pass, so make sure a mixed world still writes.
+        report.world.to_brz_vec().unwrap();
+    }
+
+    /// A prefab's dynamic sub-grids are positioned in world coordinates from
+    /// their joint brick. Moving that joint brick to the frozen grid shifts its
+    /// stored position by `CHUNK_HALF` (the game adds it back), so the sub-grid
+    /// entities must not move with it.
+    #[test]
+    fn water_does_not_move_prefab_sub_grids() {
+        let door = || {
+            let mut save = bls::Save::new();
+            save.bricks.push(bls::Brick::new("Plain Door"));
+            save
+        };
+
+        let dry = convert(&door());
+        let mut wet_save = door();
+        wet_save.bricks.push(water_brick());
+        let wet = convert(&wet_save);
+
+        let locations = |report: &ConvertReport| -> Vec<brdb::Vector3f> {
+            report
+                .world
+                .grids
+                .iter()
+                .filter(|(entity, _)| !entity.frozen)
+                .map(|(entity, _)| entity.location)
+                .collect()
+        };
+        assert!(!locations(&dry).is_empty());
+        assert_eq!(locations(&dry), locations(&wet));
+
+        // The door's own bricks moved to the frozen grid, shifted by CHUNK_HALF.
+        let frozen = wet
+            .world
+            .grids
+            .iter()
+            .find(|(entity, _)| entity.frozen)
+            .expect("frozen grid");
+        assert_eq!(frozen.1.len(), dry.world.bricks.len());
+        for (wet_brick, dry_brick) in frozen.1.iter().zip(&dry.world.bricks) {
+            assert_eq!(wet_brick.position, dry_brick.position - Position::CHUNK_HALF);
+        }
     }
 }
 

@@ -52,7 +52,11 @@ in `src/lib.rs` and `src/mappings.rs`.
 
 - Most bls "extra" lines (events other than supported conversions, named-brick config, etc.) —
   `bls` parses them, but the converter ignores them. Owner BL_IDs are preserved as brick owners.
-- `shape_fx` (undulo/water/etc.) — no mapping.
+- `shape_fx` effects other than water — no mapping. Water-shaped stock `Nx Water`
+  bricks become invisible QA water-zone projectors on Brickadia's global main
+  grid, and their component defines Brickadia's fixed 72-unit water height.
+  A save containing water moves its ordinary bricks to a separate frozen grid,
+  since the zones evaluate overlaps against whatever shares the main grid.
 - Prints/decals — `print` field currently ignored.
 
 ## Verifying output
